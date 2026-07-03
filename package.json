@@ -1,0 +1,48 @@
+{
+  "name": "rtt-runtime-monitor",
+  "version": "1.0.0",
+  "description": "Runtime Observer - J-Link RTT runtime and CPU load measurement tool",
+  "main": "main.js",
+  "author": "XPF",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.naen.rtt-runtime-monitor",
+    "productName": "Runtime Observer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*",
+      "backend/**/*",
+      "tools/**/*",
+      "build/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "tools",
+        "to": "tools",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}

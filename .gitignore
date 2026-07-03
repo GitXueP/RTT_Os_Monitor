@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+release/
+*.exe
+*.msi
+*.nupkg
+*.blockmap
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Logs and runtime files
+*.log
+logs/
+*.tmp
+*.temp
+
+# Local Electron / editor state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Environment and local secrets
+.env
+.env.*
+settings.local.json

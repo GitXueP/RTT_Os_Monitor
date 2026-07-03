@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Runtime Observer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#0c1224;--panel:#121a2e;--panel2:#182238;--line:#2d3956;--text:#e9efff;--muted:#9faccc;
+      --blue:#54bdff;--green:#40d97a;--yellow:#f4c542;--red:#ff625a;--purple:#a58bff;
+      --shadow:0 18px 48px rgba(0,0,0,.25);--radius:18px;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:linear-gradient(135deg,#0a1020,#11182d 55%,#17142a);color:var(--text);font-family:Segoe UI,Microsoft YaHei,Arial,sans-serif;overflow:hidden;font-variant-numeric:tabular-nums}
+    header{height:82px;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 18px 12px 22px;border-bottom:1px solid var(--line);background:rgba(10,15,30,.9);backdrop-filter:blur(10px)}
+    header>div:first-child{min-width:0;flex:1}.brand-title{display:flex;align-items:center;gap:12px;min-width:0}
+    h1{font-size:26px;margin:0 0 8px;font-weight:850;letter-spacing:.2px;white-space:nowrap}.sub{font-size:13px;color:var(--muted);line-height:1.25;max-width:980px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .top-right{flex:0 0 auto;min-width:680px;display:grid;grid-template-rows:34px 34px;grid-template-columns:1fr;gap:6px;justify-items:end;align-content:center}.top-status-row,.top-action-row{display:flex;align-items:center;gap:8px;justify-content:flex-end;white-space:nowrap}.top-status-row{padding:3px 6px;border:1px solid rgba(84,189,255,.18);background:rgba(255,255,255,.025);border-radius:18px}.pill{height:28px;display:flex;gap:8px;align-items:center;border:1px solid var(--line);background:rgba(255,255,255,.045);border-radius:999px;padding:5px 10px;color:var(--muted);font-size:12px}.pill b{color:#dce7ff}.dot{width:9px;height:9px;border-radius:50%;background:var(--red);box-shadow:0 0 12px currentColor}.dot.on{background:var(--green)}
+    input,select,button{font:inherit} input,select{background:#10182a;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 10px;outline:none} input[type="number"]{width:118px} .top-right input[type="number"]{width:116px;height:26px;padding:3px 9px;border-radius:8px;font-size:12px} select{height:36px} button{height:34px;border:1px solid var(--line);background:#172139;color:var(--text);border-radius:12px;padding:7px 13px;cursor:pointer;line-height:1;white-space:nowrap}button:hover{border-color:var(--blue);background:#1d2a48}.primary{background:#123653;border-color:#2375a6;color:#dff5ff}.danger{background:#351b24;border-color:#5e2630}
+    .top-action-row button{padding:7px 10px;font-size:13px}
+    @media (max-width:1450px){.top-right{min-width:670px}.sub{max-width:720px}.pill{padding:5px 8px}.top-action-row button{padding:7px 8px;font-size:12px}}
+    .tabs{height:52px;display:flex;align-items:center;gap:12px;padding:9px 22px;border-bottom:1px solid var(--line);background:#0f1628}.tab{padding:9px 16px;border-radius:999px;border:1px solid var(--line);color:var(--muted);cursor:pointer;user-select:none}.tab.active{background:#123653;border-color:#277eb1;color:#e9f8ff;box-shadow:0 0 0 2px rgba(81,183,255,.08) inset}.hint{margin-left:auto;color:var(--muted);font-size:12px}
+    .page{display:none;height:calc(100vh - 134px);padding:16px 22px;gap:16px;overflow:hidden}.page.active{display:flex}.left{width:350px;min-width:350px;display:flex;flex-direction:column;gap:14px;overflow:hidden}.main{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;overflow:hidden}.card{background:rgba(18,26,46,.92);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}.card-title{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);font-weight:800}.card-title small{font-weight:500;color:var(--muted)}
+    .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px}.metric{background:var(--panel2);border:1px solid #34405c;border-radius:14px;padding:12px;min-height:78px}.metric .name{font-size:12px;color:var(--muted)}.metric .value{font-size:25px;font-weight:900;margin-top:6px;white-space:nowrap}.metric .unit{font-size:12px;color:var(--muted);margin-left:4px}.small{font-size:12px;color:var(--muted)}
+    .chart-card{height:390px;min-height:390px;padding:16px}.chart-head{height:38px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.chart-title{font-weight:900}.chart-tools{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}.chart-wrap{height:315px;position:relative;overflow:hidden;contain:layout paint size} canvas{display:block;width:100%!important;height:100%!important}
+    .list{padding:10px;overflow:auto;scrollbar-gutter:stable;height:100%;min-height:0}.object-list{height:300px}.log-list{height:170px;font-family:Consolas,monospace;font-size:12px;white-space:pre;line-height:1.35}.item{display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #2d3956;background:#151f35;border-radius:12px;padding:10px 12px;margin-bottom:8px;cursor:pointer;height:42px}.item:hover{border-color:#3d91c8}.item.active{background:#16314e;border-color:#55bcff}.item-name{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item-val{color:#5bc4ff;font-weight:800;font-size:12px;white-space:nowrap;min-width:86px;text-align:right}
+    .table-wrap{height:340px;overflow:auto;scrollbar-gutter:stable}.table-wrap.large{height:470px}table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}th,td{border-bottom:1px solid #26314a;padding:10px 12px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}th{position:sticky;top:0;background:#121a2e;color:#b7c6e8;z-index:2}td:nth-child(1),td:nth-child(2),th:nth-child(1),th:nth-child(2){text-align:left}.tag{display:inline-block;border-radius:999px;padding:3px 7px;background:#164061;color:#7bd7ff;font-size:12px;font-weight:800}.tag.r{background:#3b2d67;color:#cabaff}.bar{height:8px;background:#26324d;border-radius:20px;overflow:hidden}.bar span{display:block;height:100%;border-radius:20px;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));min-width:2px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}.sep{flex:1}.search{width:220px}.snapshots{height:220px;overflow:auto;scrollbar-gutter:stable}.snapshot{border:1px solid #2d3956;background:#151f35;border-radius:12px;margin:8px 10px;padding:10px;font-size:12px;color:var(--muted)}.snapshot b{color:var(--text)}
+    .load-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px}.load-chart-card{height:420px;padding:16px}.load-chart-card .chart-wrap{height:345px}.load-table{height:310px;overflow:auto;scrollbar-gutter:stable}.warn{color:#f6c34a}.ok{color:#37d67a}.bad{color:#ff5f57}.measure-readout{color:#56e0ff;font-weight:800;min-width:118px;text-align:right}.measure-line-label{font-size:11px;font-weight:800}.alarm-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid #2d3956;padding:4px 9px;font-weight:800;color:#e9efff}.alarm-badge:before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}.alarm-normal{color:#40d97a;background:rgba(64,217,122,.10);border-color:rgba(64,217,122,.45)}.alarm-warn{color:#f4c542;background:rgba(244,197,66,.12);border-color:rgba(244,197,66,.50)}.alarm-high{color:#ff9a7a;background:rgba(255,154,122,.14);border-color:rgba(255,154,122,.55)}.alarm-critical{color:#ff3b30;background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.60);animation:pulseAlarm 1s infinite}@keyframes pulseAlarm{0%,100%{box-shadow:0 0 0 rgba(255,59,48,0)}50%{box-shadow:0 0 18px rgba(255,59,48,.55)}}
+  
+
+/* ============================================================
+   Electron desktop layout patch
+   - compact top bar
+   - actions moved to Electron menu
+   - resizable/collapsible side panel
+   - resizable chart/table area
+   - full object-name display
+   ============================================================ */
+body.electron-desktop header{height:46px;padding:6px 16px;justify-content:flex-end}
+body.electron-desktop header>div:first-child{display:none}
+body.electron-desktop h1{font-size:24px;margin:0;white-space:nowrap}
+body.electron-desktop .sub{display:none}
+body.electron-desktop .hint{font-size:11px;opacity:.75;max-width:720px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.electron-desktop .top-right{min-width:auto;grid-template-rows:32px;gap:0}
+body.electron-desktop .top-action-row{display:none}
+body.electron-desktop .top-status-row{height:34px;padding:3px 8px;gap:7px}
+body.electron-desktop .pill{height:27px;padding:4px 9px;font-size:12px}
+body.electron-desktop .tabs{height:46px;padding:7px 18px}
+body.electron-desktop .tab{padding:8px 14px}
+body.electron-desktop .page{height:calc(100vh - 92px);padding:14px 18px;gap:0;display:none}
+body.electron-desktop .page.active{display:grid;grid-template-columns:var(--leftW,300px) 8px minmax(0,1fr);align-items:stretch}
+body.electron-desktop .page.sidebar-collapsed{grid-template-columns:0 8px minmax(0,1fr)}
+body.electron-desktop .left{width:auto;min-width:0;overflow:hidden;margin-right:0}
+body.electron-desktop .page.sidebar-collapsed .left{visibility:hidden}
+body.electron-desktop .main{min-width:0;overflow:hidden;margin-left:0}
+.desktop-v-splitter{cursor:col-resize;position:relative;margin:0 8px;background:rgba(45,57,86,.35);border-radius:10px}
+.desktop-v-splitter:hover{background:rgba(84,189,255,.38)}
+.desktop-v-splitter:before{content:'';position:absolute;top:50%;left:50%;width:2px;height:48px;background:rgba(180,198,232,.45);transform:translate(-50%,-50%);border-radius:3px}
+.desktop-h-splitter{height:8px;min-height:8px;cursor:row-resize;background:rgba(45,57,86,.35);border-radius:10px;margin:0}
+.desktop-h-splitter:hover{background:rgba(84,189,255,.38)}
+body.electron-desktop .chart-card{height:var(--rtChartH,390px);min-height:240px;max-height:70vh;flex:0 0 auto}
+body.electron-desktop .load-chart-card{height:var(--loadChartH,420px);min-height:260px;max-height:72vh;flex:0 0 auto}
+body.electron-desktop .chart-wrap{height:calc(100% - 46px)}
+body.electron-desktop .main>.card:last-child{flex:1 1 auto;min-height:210px;display:flex;flex-direction:column}
+body.electron-desktop .main>.card:last-child .table-wrap{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .main>.card:last-child .load-table{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .object-list{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .left .card:nth-child(2){flex:1 1 auto;min-height:160px;display:flex;flex-direction:column}
+body.electron-desktop .left .card:nth-child(3){height:190px;min-height:120px;flex:0 0 auto;display:flex;flex-direction:column}
+body.electron-desktop .log-list{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .metrics{padding:10px;gap:8px}
+body.electron-desktop .metric{min-height:64px;padding:10px}
+body.electron-desktop .metric .value{font-size:22px}
+body.electron-desktop .toolbar{padding:9px 14px}
+body.electron-desktop .card-title{height:42px}
+body.electron-desktop .item{height:auto;min-height:40px;align-items:flex-start}
+body.electron-desktop .item-name{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word;line-height:1.22;flex:1}
+body.electron-desktop .item-val{flex:0 0 92px;margin-top:1px}
+.object-cell{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word;line-height:1.25}
+.object-head{text-align:left!important}
+  .runtime-table col.col-type{width:80px}.runtime-table col.col-object{width:380px}.runtime-table col.col-number{width:130px}.runtime-table col.col-relative{width:180px}
+  .load-detail-table col.col-type{width:90px}.load-detail-table col.col-object{width:440px}.load-detail-table col.col-number{width:150px}.load-detail-table col.col-count{width:120px}.load-detail-table col.col-percent{width:180px}
+  body.electron-desktop .table-wrap,body.electron-desktop .load-table{overflow:auto;scrollbar-gutter:stable both-edges}
+  body.electron-desktop .left{gap:10px}
+  body.electron-desktop .left>.card:first-child{flex:0 0 auto;overflow:visible}
+  body.electron-desktop .metrics{grid-template-columns:1fr 1fr;padding:8px;gap:7px}
+  body.electron-desktop #runtimePage .metric{min-height:56px;padding:8px 10px;border-radius:12px}
+  body.electron-desktop #runtimePage .metric .name{font-size:11px}
+  body.electron-desktop #runtimePage .metric .value{font-size:20px;margin-top:4px;line-height:1.05}
+  body.electron-desktop #runtimePage .metric:nth-child(3){grid-column:1/3}
+  body.electron-desktop #runtimePage .left{align-self:start}
+  .current-object-card{padding:12px 14px}
+  .current-object-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .current-object-name{font-weight:900;line-height:1.25;word-break:break-word}
+  .current-object-meta{font-size:12px;color:#65cfff;margin-top:8px}
+  body.electron-desktop .left .card.side-tool-card{height:auto;min-height:0;flex:0 0 auto;display:block}
+  .side-tool-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}
+  .side-tool-actions button{width:100%;height:32px;border-radius:10px;padding:6px 8px;font-size:12px}
+  .floating-panel{position:fixed;z-index:1600;left:72px;bottom:34px;width:560px;height:300px;display:none;flex-direction:column;background:rgba(18,26,46,.98);border:1px solid rgba(84,189,255,.32);border-radius:14px;box-shadow:0 22px 70px rgba(0,0,0,.42);overflow:hidden}
+  .floating-panel.open{display:flex}
+  .floating-panel-head{height:40px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border-bottom:1px solid var(--line);background:rgba(10,15,30,.92);cursor:move;user-select:none}
+  .floating-panel-title{font-weight:800}.floating-panel-title small{font-weight:500;color:var(--muted);margin-left:8px}
+  .floating-panel-actions{display:flex;align-items:center;gap:6px}.floating-panel-actions button{width:28px;height:28px;border-radius:8px;padding:0}
+  .floating-panel-body{flex:1;min-height:0;overflow:hidden}
+  .floating-panel .log-list{height:100%;font-size:12px;padding:12px}
+  .runtime-table tbody tr{cursor:pointer}
+  .runtime-table tbody tr:hover{background:#172947}
+  .runtime-table tbody tr.selected-row{background:#1d324f}
+  .desktop-status-chip{display:inline-flex;align-items:center;gap:6px;height:27px;border:1px solid var(--line);background:rgba(255,255,255,.045);border-radius:999px;padding:4px 9px;color:var(--muted);font-size:12px;white-space:nowrap}.desktop-status-chip b{color:#dce7ff}.desktop-status-chip .mini-dot{width:8px;height:8px;border-radius:50%;background:#777;box-shadow:0 0 10px currentColor}.desktop-status-chip.ok .mini-dot{background:var(--green)}.desktop-status-chip.warn .mini-dot{background:var(--yellow)}.desktop-status-chip.bad .mini-dot{background:var(--red)}
+  .sidebar-toggle-floating{position:absolute;z-index:50;left:8px;top:106px;width:30px;height:30px;border-radius:999px;background:#123653;border:1px solid #277eb1;color:#e9f8ff;display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow)}
+  body.electron-desktop .page.sidebar-collapsed .sidebar-toggle-floating{display:flex}
+  .startup-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:28px;background:radial-gradient(circle at 50% -20%,rgba(84,189,255,.16),transparent 38%),linear-gradient(135deg,#070b14,#0c1427 48%,#141224);color:var(--text)}
+  .startup-overlay.hidden{opacity:0;pointer-events:none;transition:opacity .42s ease}
+  .startup-shell{width:min(1180px,96vw);height:min(760px,92vh);display:grid;grid-template-columns:370px minmax(0,1fr);gap:18px;border:1px solid rgba(84,189,255,.28);background:linear-gradient(180deg,rgba(18,26,46,.94),rgba(10,15,30,.98));box-shadow:0 28px 90px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);border-radius:18px;overflow:hidden;position:relative}
+  .startup-shell:before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(84,189,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(84,189,255,.05) 1px,transparent 1px);background-size:36px 36px;mask-image:linear-gradient(180deg,rgba(0,0,0,.55),transparent 78%);pointer-events:none}
+  .startup-panel{position:relative;z-index:1;padding:28px;border-right:1px solid rgba(84,189,255,.18);background:rgba(8,13,26,.46)}
+  .startup-title{font-size:28px;font-weight:900;margin:0 0 8px;letter-spacing:0}
+  .startup-sub{color:#9faccc;font-size:13px;line-height:1.55;margin-bottom:22px}
+  .startup-spinner{width:72px;height:72px;border-radius:50%;border:2px solid rgba(84,189,255,.22);border-top-color:#54bdff;border-right-color:#40d97a;animation:startupSpin .9s linear infinite;margin:6px 0 22px}
+  @keyframes startupSpin{to{transform:rotate(360deg)}}
+  .startup-progress{height:10px;border-radius:999px;background:#111a2d;border:1px solid #2d3956;overflow:hidden;margin:12px 0 8px}
+  .startup-progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#54bdff,#40d97a,#f4c542);transition:width .25s ease}
+  .startup-percent{font-size:12px;color:#9faccc;text-align:right;margin-bottom:20px}
+  .startup-steps{display:flex;flex-direction:column;gap:9px}
+  .startup-step{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;border:1px solid rgba(45,57,86,.85);background:rgba(18,26,46,.72);border-radius:12px;padding:10px 12px;font-size:13px}
+  .startup-step .step-dot{width:10px;height:10px;border-radius:50%;background:#65708a;box-shadow:0 0 10px currentColor}
+  .startup-step small{color:#9faccc}
+  .startup-step.ok{border-color:rgba(64,217,122,.42)}.startup-step.ok .step-dot{background:#40d97a;color:#40d97a}
+  .startup-step.warn{border-color:rgba(244,197,66,.45)}.startup-step.warn .step-dot{background:#f4c542;color:#f4c542}
+  .startup-step.bad{border-color:rgba(255,98,90,.48)}.startup-step.bad .step-dot{background:#ff625a;color:#ff625a}
+  .startup-log-panel{position:relative;z-index:1;display:flex;flex-direction:column;min-width:0;padding:28px}
+  .startup-log-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .startup-log-head b{font-size:16px}.startup-log-head span{font-size:12px;color:#9faccc}
+  .startup-log{flex:1;min-height:0;overflow:auto;border:1px solid rgba(45,57,86,.9);background:rgba(3,7,15,.62);border-radius:14px;padding:14px;font:12px/1.5 Consolas,monospace;color:#cde2ff;white-space:pre-wrap;scrollbar-gutter:stable}
+  .startup-actions{height:52px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+  .startup-state{font-size:13px;color:#9faccc}
+  #enterMonitorBtn{min-width:128px}
+  @media (min-width:1700px){body.electron-desktop{--leftW:320px}.runtime-table col.col-object{width:460px}.load-detail-table col.col-object{width:520px}}
+
+  /* Professional instrument theme and stable toolbars */
+  body.electron-desktop{
+    --bg:#273242;--panel:#303c4c;--panel2:#384657;--line:#526176;--text:#f2f5f8;--muted:#c3ccd8;
+    --blue:#4fb7e5;--green:#49c786;--yellow:#e5b84b;--red:#e26363;--purple:#8f79d6;
+    --shadow:0 14px 34px rgba(22,29,39,.28);
+    background:#273242;
+  }
+  body.electron-desktop header,
+  body.electron-desktop .tabs{background:#2b3545;border-color:#526176}
+  body.electron-desktop .card{background:#303c4c;border-color:#526176;box-shadow:var(--shadow)}
+  body.electron-desktop .metric,
+  body.electron-desktop input,
+  body.electron-desktop select,
+  body.electron-desktop button,
+  body.electron-desktop .pill,
+  body.electron-desktop .desktop-status-chip,
+  body.electron-desktop .snapshot{background:#384657;border-color:#5f6f84;color:var(--text)}
+  body.electron-desktop .tab{background:#334051;border-color:#5f6f84;color:#d7dee8}
+  body.electron-desktop .tab.active,
+  body.electron-desktop .primary{background:#26627a;border-color:#55b9e6;color:#f5fbff}
+  body.electron-desktop .hint{display:none}
+  body.electron-desktop .chart-head{height:44px;display:grid;grid-template-columns:minmax(260px,1fr) auto;align-items:center;column-gap:18px;margin-bottom:8px}
+  body.electron-desktop .chart-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body.electron-desktop .chart-tools{height:36px;display:grid;grid-auto-flow:column;grid-auto-columns:max-content;align-items:center;justify-content:end;gap:12px;min-width:780px}
+  body.electron-desktop .chart-tools>*{white-space:nowrap}
+  body.electron-desktop .measure-readout{width:132px;min-width:132px;text-align:center}
+  body.electron-desktop #rtWindowLabel,
+  body.electron-desktop #loadViewLabel{display:inline-block;width:64px;text-align:left}
+  body.electron-desktop .chart-tools button{height:32px;padding:6px 12px;border-radius:10px}
+  body.electron-desktop .toolbar{min-height:44px;background:#303c4c}
+  body.electron-desktop th{background:#344253;color:#e6edf7}
+  body.electron-desktop td{border-color:#4a596c}
+  body.electron-desktop .bar{background:#4b596b}
+  body.electron-desktop #loadPage .left .card:nth-child(1) .card-title small,
+  body.electron-desktop #loadPage .left .small,
+  body.electron-desktop #loadPage .main>.card:last-child .card-title small,
+  body.electron-desktop #loadPage .main>.card:last-child .toolbar .sub{display:none}
+  body.electron-desktop #loadPage .metric{min-height:60px;padding:9px 10px}
+  body.electron-desktop #loadPage .metric .value{font-size:21px;line-height:1.1}
+  body.electron-desktop #loadPage #loadMode{font-size:16px!important;white-space:normal;line-height:1.25}
+  body.electron-desktop #loadPage .snapshots{height:auto;min-height:170px}
+  body.electron-desktop .alarm-badge{min-width:150px;justify-content:center}
+
+  </style>
+</head>
+<body class="electron-desktop">
+<div id="startupOverlay" class="startup-overlay">
+  <div class="startup-shell">
+    <section class="startup-panel">
+      <h2 class="startup-title">RTT Monitor Preflight</h2>
+      <div class="startup-sub">正在接管 J-Link、RTT Telnet 与 WebSocket 通道。完成连接预检查后自动进入监视界面。</div>
+      <div class="startup-spinner" aria-hidden="true"></div>
+      <div class="startup-progress"><span id="startupProgressBar"></span></div>
+      <div id="startupPercent" class="startup-percent">0%</div>
+      <div class="startup-steps">
+        <div id="stepPorts" class="startup-step warn"><span class="step-dot"></span><span>端口预检查</span><small>checking</small></div>
+        <div id="stepBackend" class="startup-step warn"><span class="step-dot"></span><span>后端服务</span><small>starting</small></div>
+        <div id="stepJlink" class="startup-step warn"><span class="step-dot"></span><span>J-Link GDB Server</span><small>unknown</small></div>
+        <div id="stepRtt" class="startup-step warn"><span class="step-dot"></span><span>RTT Telnet</span><small>unknown</small></div>
+        <div id="stepWs" class="startup-step warn"><span class="step-dot"></span><span>前端 WebSocket</span><small>waiting</small></div>
+      </div>
+    </section>
+    <section class="startup-log-panel">
+      <div class="startup-log-head"><b>连接记录</b><span>Backend / J-Link / RTT / WebSocket</span></div>
+      <div id="startupLog" class="startup-log">等待启动日志...</div>
+      <div class="startup-actions">
+        <div id="startupState" class="startup-state">初始化连接步骤...</div>
+        <button id="enterMonitorBtn" class="primary">进入监视界面</button>
+      </div>
+    </section>
+  </div>
+</div>
+<header>
+  <div><h1>Runtime Observer</h1><div class="sub">Runtime and CPU load measurement tool</div></div>
+  <div class="top-right">
+    <div class="top-status-row">
+      <div class="pill"><span id="statusDot" class="dot"></span><span id="statusText">未连接</span></div>
+      <div class="pill">WS：<b id="wsAddr">127.0.0.1:8765</b></div>
+      <div class="pill">CPU Hz <input id="cpuHz" type="number" value="40000000" min="1" step="1000000"></div>
+      <span id="backendStatusChip" class="desktop-status-chip warn"><span class="mini-dot"></span><b>Backend</b>: starting</span>
+      <span id="jlinkStatusChip" class="desktop-status-chip warn"><span class="mini-dot"></span><b>J-Link</b>: unknown</span>
+      <span id="rttStatusChip" class="desktop-status-chip warn"><span class="mini-dot"></span><b>RTT</b>: unknown</span>
+    </div>
+    <div class="top-action-row">
+      <button id="importTaskMapBtn" title="导入 RTE_TestTask.h，解析 EN_TASK_OBJECT_TYPE">导入Task映射</button>
+      <button id="importRunnableMapBtn" title="导入 RTE_TestRunnable.h，解析 EN_RUNNABLE_OBJECT_TYPE">导入Runnable映射</button>
+      <button id="snapshotBtn" class="primary">捕获快照</button>
+      <button id="reportBtn" class="primary">导出测试报告</button>
+      <button id="clearBtn" class="danger">清空数据</button>
+      <input id="taskMapFile" type="file" accept=".h,.hpp,.txt" style="display:none">
+      <input id="runnableMapFile" type="file" accept=".h,.hpp,.txt" style="display:none">
+    </div>
+  </div>
+</header>
+<nav class="tabs">
+  <div class="tab active" data-page="runtimePage">Task / Runnable 运行时间</div>
+  <div class="tab" data-page="loadPage">CPU 整体负载</div>
+  <div class="hint">曲线滚轮：上滑缩短时间窗口；下滑拉长时间窗口；Ctrl+滚轮按鼠标位置精细缩放；Shift+滚轮查看历史</div>
+</nav>
+
+<section id="runtimePage" class="page active">
+  <button class="sidebar-toggle-floating" title="展开左侧栏">☰</button>
+  <aside class="left">
+    <div class="card"><div class="metrics">
+      <div class="metric"><div class="name">接收帧数</div><div class="value" id="frameCount">0</div></div>
+      <div class="metric"><div class="name">接收速率</div><div class="value"><span id="fps">0</span><span class="unit">帧/s</span></div></div>
+      <div class="metric" style="grid-column:1/3"><div class="name">当前最大运行时间</div><div class="value"><span id="maxCurrentUs">0.000</span><span class="unit">us</span></div></div>
+      <div class="metric"><div class="name">Task 数量</div><div class="value" id="taskCount">0</div></div>
+      <div class="metric"><div class="name">Runnable 数量</div><div class="value" id="runnableCount">0</div></div>
+    </div></div>
+    <div class="card current-object-card"><div class="current-object-label">当前曲线对象</div><div id="currentObjName" class="current-object-name">等待数据...</div><div id="currentObjMeta" class="current-object-meta">--</div></div>
+    <div class="card side-tool-card"><div class="card-title">辅助面板 <small>菜单可再次打开</small></div><div class="side-tool-actions"><button id="openLogPanelBtn">接收日志</button><button id="collapseSidebarBtn">收起侧栏</button></div></div>
+  </aside>
+  <div class="desktop-v-splitter" title="左右拖动调整侧栏宽度"></div>
+  <main class="main">
+    <div class="card chart-card"><div class="chart-head"><div class="chart-title" id="runtimeChartTitle">运行时间曲线</div><div class="chart-tools"><span>精细Y轴：局部自适应</span><button id="rtPauseBtn">暂停曲线</button><label><input type="checkbox" id="rtMeasure"> 测量模式</label><span id="rtMeasureText" class="measure-readout">Δ -- ms</span><label><input type="checkbox" id="rtFollow" checked> 跟随最新</label><span>显示窗口：<b id="rtWindowLabel">10.0s</b></span><button id="rtResetView">复位视图</button></div></div><div class="chart-wrap"><canvas id="runtimeChart"></canvas></div></div>
+    <div class="card"><div class="card-title">测量对象运行一次时间 <small>点击表格行切换曲线</small></div><div class="toolbar"><span class="small">Min / Current / Avg / Max</span><span class="sep"></span><input id="runtimeSearch" class="search" placeholder="搜索对象名称..."></div><div class="table-wrap"><table class="runtime-table"><colgroup><col class="col-type"><col class="col-object"><col class="col-number"><col class="col-number"><col class="col-number"><col class="col-number"><col class="col-relative"></colgroup><thead><tr><th>类型</th><th class="object-head">对象</th><th>当前 us</th><th>最小 us</th><th>平均 us</th><th>最大 us</th><th>相对耗时</th></tr></thead><tbody id="runtimeTable"></tbody></table></div></div>
+  </main>
+</section>
+
+<section id="loadPage" class="page">
+  <button class="sidebar-toggle-floating" title="展开左侧栏">☰</button>
+  <aside class="left">
+    <div class="card"><div class="card-title">负载窗口 <small>滑动窗口</small></div><div class="metrics">
+      <div class="metric" style="grid-column:1/3"><div class="name">窗口长度</div><div class="value"><input id="loadWindowMs" type="number" value="100" min="10" step="10"><span class="unit">ms</span></div></div>
+      <div class="metric" style="grid-column:1/3"><div class="name">计算模式</div><div class="value" id="loadMode" style="font-size:18px">等待数据</div></div>
+      <div class="metric"><div class="name">当前负载</div><div class="value"><span id="loadNow">0.00</span><span class="unit">%</span></div></div>
+      <div class="metric"><div class="name">峰值负载</div><div class="value"><span id="loadPeak">0.00</span><span class="unit">%</span></div></div>
+      <div class="metric"><div class="name">窗口内耗时</div><div class="value"><span id="loadUsedUs">0</span><span class="unit">us</span></div></div>
+      <div class="metric"><div class="name">参与负载事件数</div><div class="value" id="loadEventCnt">0</div></div>
+    </div></div>
+    <div class="card"><div class="card-title">快照记录 <small>最多 30 条</small></div><div id="snapshotList" class="snapshots"></div></div>
+  </aside>
+  <div class="desktop-v-splitter" title="左右拖动调整侧栏宽度"></div>
+  <main class="main">
+    <div class="card load-chart-card"><div class="chart-head"><div class="chart-title">CPU 整体负载曲线</div><div class="chart-tools"><span id="loadAlarmBadge" class="alarm-badge alarm-normal">负载正常</span><label><input type="checkbox" id="loadFollow" checked> 跟随最新</label><span>显示窗口：<b id="loadViewLabel">20.0s</b></span><button id="loadResetView">复位视图</button></div></div><div class="chart-wrap"><canvas id="loadChart"></canvas></div></div>
+    <div class="card"><div class="card-title">负载贡献明细 <small>当前窗口</small></div><div class="toolbar"><button id="exportSnap">导出快照 CSV</button><span class="sep"></span></div><div class="load-table"><table class="load-detail-table"><colgroup><col class="col-type"><col class="col-object"><col class="col-number"><col class="col-count"><col class="col-percent"></colgroup><thead><tr><th>类型</th><th class="object-head">对象</th><th>窗口耗时 us</th><th>事件数</th><th>贡献 %</th></tr></thead><tbody id="loadTable"></tbody></table></div></div>
+  </main>
+</section>
+
+<div id="runtimeLogPanel" class="floating-panel" aria-label="接收日志浮动面板">
+  <div class="floating-panel-head">
+    <div class="floating-panel-title">接收日志 <small>抽样显示，最近 60 条</small></div>
+    <div class="floating-panel-actions"><button id="closeLogPanelBtn" title="关闭">×</button></div>
+  </div>
+  <div class="floating-panel-body"><div id="logList" class="list log-list"></div></div>
+</div>
+
+<script>
+'use strict';
+const WS_URL = 'ws://127.0.0.1:8765';
+document.getElementById('wsAddr').textContent = WS_URL.replace('ws://','');
+
+const state = {
+  objects:new Map(), events:[], loadSeries:[], logs:[], snapshots:[], selectedKey:'', activePage:'runtimePage',
+  frameCount:0,lastFrameCount:0,fps:0,search:'',
+  rtVisibleMs:10000,rtViewEnd:Date.now(),rtFollow:true,rtYMax:100,rtPaused:false,rtMeasure:false,rtMeasureKey:'',rtM1:null,rtM2:null,rtDragging:null,
+  loadVisibleMs:20000,loadViewEnd:Date.now(),loadFollow:true,loadPeak:0,
+  lastUiRender:0,lastRtChartRender:0,lastLoadChartRender:0,lastTableRender:0,lastLoadSample:0,lastLogT:0,lastWsMsgT:0
+};
+const MAX_LOGS=60,MAX_EVENTS=50000,MAX_SERIES_POINTS=5000,MAX_LOAD_POINTS=8000;
+const UI_INTERVAL=80,TABLE_INTERVAL=180,CHART_INTERVAL=80,LOAD_SAMPLE_INTERVAL=80,LOG_INTERVAL=250;
+function cpuHz(){return Math.max(1,Number(document.getElementById('cpuHz').value)||40000000)}
+function ticksToUs(ticks){return ticks/cpuHz()*1000000}
+function isRuntimeKey(key){return /^(OS_TASK_\d+|RUNNABLE_\d+)_RuntimeOnce$/.test(key)}
+function parseKey(key){const m=key.match(/^(OS_TASK|RUNNABLE)_(\d+)_RuntimeOnce$/);return {type:m&&m[1]==='RUNNABLE'?'Runnable':'Task',id:m?Number(m[2]):999999}}
+const MEASURE_OVERHEAD_PCT = 2;
+
+/* ===== 对象名称映射：导入 RTE_TestTask.h / RTE_TestRunnable.h 后，将 OS_TASK_X / RUNNABLE_X 映射为 MCU 端真实对象名 ===== */
+const objectNameMap = { task:{}, runnable:{}, meta:{task:'', runnable:''} };
+
+function loadObjectNameMapFromStorage(){
+  try{
+    const raw=localStorage.getItem('rttRuntimeObjectNameMap');
+    if(!raw) return;
+    const saved=JSON.parse(raw);
+    if(saved&&saved.task) objectNameMap.task=saved.task;
+    if(saved&&saved.runnable) objectNameMap.runnable=saved.runnable;
+    if(saved&&saved.meta) objectNameMap.meta=saved.meta;
+  }catch(e){}
+}
+
+function saveObjectNameMapToStorage(){
+  try{localStorage.setItem('rttRuntimeObjectNameMap',JSON.stringify(objectNameMap));}catch(e){}
+}
+
+function parseEnumObjectMap(text, enumName){
+  const result={};
+  const enumRe=new RegExp('typedef\\s+enum\\s*\\{([\\s\\S]*?)\\}\\s*'+enumName+'\\s*;','m');
+  const em=String(text||'').match(enumRe);
+  if(!em) return result;
+  let nextId=0;
+  for(const rawLine of em[1].split(/\r?\n/)){
+    const line=rawLine.trim();
+    if(!line || line.startsWith('#')) continue;
+    const nameMatch=line.match(/^([A-Za-z_]\w*)\s*(?:=\s*([^,\/]+))?\s*,?/);
+    if(!nameMatch) continue;
+    const enumSymbol=nameMatch[1];
+    if(/^ALL_/.test(enumSymbol)) continue;
+    if(nameMatch[2]){
+      const v=Number(String(nameMatch[2]).replace(/[uUlL]/g,'').trim());
+      if(Number.isFinite(v)) nextId=v;
+    }
+    let objectName=enumSymbol;
+    const commentMatch=line.match(/\/\*+\s*(?:\d+\s*:\s*)?([^*]+?)\s*\*+\//);
+    if(commentMatch){
+      const cm=commentMatch[1].trim();
+      const colon=cm.match(/^\d+\s*:\s*(.+)$/);
+      objectName=(colon?colon[1]:cm).trim() || enumSymbol;
+    }
+    result[nextId]=objectName;
+    nextId++;
+  }
+  return result;
+}
+
+function importObjectMap(kind, text, fileName){
+  const enumName = kind==='task' ? 'EN_TASK_OBJECT_TYPE' : 'EN_RUNNABLE_OBJECT_TYPE';
+  const map = parseEnumObjectMap(text, enumName);
+  const count = Object.keys(map).length;
+  if(count===0){
+    alert('未在文件中解析到 '+enumName+' 枚举，请确认导入的是正确的 RTE_TestTask.h 或 RTE_TestRunnable.h。');
+    return;
+  }
+  objectNameMap[kind]=map;
+  objectNameMap.meta[kind]=`${fileName||'导入文件'}，${count} 个对象`;
+  saveObjectNameMapToStorage();
+  updateObjectMapButtons();
+  renderAll(true);
+  if(state.selectedKey) selectKey(state.selectedKey);
+  alert((kind==='task'?'Task':'Runnable')+' 映射导入成功：'+count+' 个对象。');
+}
+
+function updateObjectMapButtons(){
+  const tb=document.getElementById('importTaskMapBtn');
+  const rb=document.getElementById('importRunnableMapBtn');
+  const tc=Object.keys(objectNameMap.task||{}).length;
+  const rc=Object.keys(objectNameMap.runnable||{}).length;
+  if(tb){tb.textContent=tc?`Task映射(${tc})`:'导入Task映射';tb.title=objectNameMap.meta.task||'导入 RTE_TestTask.h，解析 EN_TASK_OBJECT_TYPE';}
+  if(rb){rb.textContent=rc?`Runnable映射(${rc})`:'导入Runnable映射';rb.title=objectNameMap.meta.runnable||'导入 RTE_TestRunnable.h，解析 EN_RUNNABLE_OBJECT_TYPE';}
+}
+
+function clearObjectNameMemory(){
+  const hasMemory=Object.keys(objectNameMap.task||{}).length||Object.keys(objectNameMap.runnable||{}).length;
+  if(!hasMemory){
+    alert('当前没有已导入的映射记忆。');
+    return;
+  }
+  if(!confirm('确认清除已导入的 Task / Runnable 映射记忆吗？\n清除后对象名称会恢复为原始显示。')){
+    return;
+  }
+  objectNameMap.task={};
+  objectNameMap.runnable={};
+  objectNameMap.meta={task:'', runnable:''};
+  try{localStorage.removeItem('rttRuntimeObjectNameMap');}catch(e){}
+  updateObjectMapButtons();
+  if(state.selectedKey){
+    document.getElementById('runtimeChartTitle').textContent=`${displayKey(state.selectedKey)} 运行时间曲线`;
+  }
+  renderAll(true);
+  alert('映射记忆已清除，显示已恢复为原始对象名称。');
+}
+
+function displayKey(key){
+  const meta=parseKey(key);
+  if(meta.type==='Task'){
+    if(objectNameMap.task && objectNameMap.task[String(meta.id)]) return objectNameMap.task[String(meta.id)];
+    return key==='OS_TASK_0_RuntimeOnce'?'OS_SCHEDULE_RuntimeOnce':key;
+  }
+  if(meta.type==='Runnable'){
+    if(objectNameMap.runnable && objectNameMap.runnable[String(meta.id)]) return objectNameMap.runnable[String(meta.id)];
+    return key;
+  }
+  return key;
+}
+loadObjectNameMapFromStorage();
+function fmtTime(t){const d=new Date(t);return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`}
+function fmtUs(v){return Number.isFinite(v)?v.toFixed(3):'--'}
+function getLoadLevel(pct){if(!Number.isFinite(pct))return 'normal';if(pct<60)return 'normal';if(pct<85)return 'warn';if(pct<95)return 'high';return 'critical'}
+function getLoadColor(pct){const level=getLoadLevel(pct);return level==='normal'?'#40d97a':(level==='warn'?'#f4c542':(level==='high'?'#ff9a7a':'#d40000'))}
+function getLoadStatusText(pct,lang='zh'){const level=getLoadLevel(pct);if(lang==='en'){return level==='normal'?'Normal':(level==='warn'?'Warning':(level==='high'?'High Load':'Critical Alarm'))}return level==='normal'?'负载正常':(level==='warn'?'负载预警':(level==='high'?'高负载告警':'严重负载告警'))}
+function updateLoadAlarm(pct){const badge=document.getElementById('loadAlarmBadge');if(!badge)return;const level=getLoadLevel(pct);badge.className='alarm-badge alarm-'+level;badge.textContent=getLoadStatusText(pct,'zh')+' '+(Number.isFinite(pct)?pct.toFixed(2):'--')+'%'}
+function sortedObjects(){return [...state.objects.values()].sort((a,b)=>a.type===b.type?a.id-b.id:(a.type==='Task'?-1:1))}
+function setConn(on,text){document.getElementById('statusDot').classList.toggle('on',on);document.getElementById('statusText').textContent=text;if(window.updateStartupWs)window.updateStartupWs(on,text)}
+function ensureObj(key){let o=state.objects.get(key);if(o)return o;const meta=parseKey(key);o={key,type:meta.type,id:meta.id,currentUs:0,currentTicks:0,minUs:Infinity,maxUs:0,sumUs:0,count:0,avgUs:0,lastT:0,series:[]};state.objects.set(key,o);if(!state.selectedKey)selectKey(key);return o}
+function appendLog(line,t){if(t-state.lastLogT<LOG_INTERVAL)return;state.lastLogT=t;state.logs.push(`[${fmtTime(t)}] ${line}`);if(state.logs.length>MAX_LOGS)state.logs.shift()}
+function ingestLine(line,t){const idx=line.indexOf('=');if(idx<0)return;const key=line.slice(0,idx).trim();if(!isRuntimeKey(key))return;const ticks=Number(line.slice(idx+1).trim());if(!Number.isFinite(ticks))return;const us=ticksToUs(ticks),o=ensureObj(key);o.currentTicks=ticks;o.currentUs=us;o.minUs=Math.min(o.minUs,us);o.maxUs=Math.max(o.maxUs,us);o.sumUs+=us;o.count++;o.avgUs=o.sumUs/o.count;o.lastT=t;
+  // Runtime 曲线不再做 25ms 桶内取最大值。每一帧都保存，曲线显示时再按像素降采样，这样能看到真实的上下波动。
+  o.series.push({x:t,y:us});
+  if(o.series.length>MAX_SERIES_POINTS)o.series.splice(0,o.series.length-MAX_SERIES_POINTS);state.events.push({t,us,key,type:o.type,id:o.id});if(state.events.length>MAX_EVENTS)state.events.splice(0,state.events.length-MAX_EVENTS);state.frameCount++;appendLog(`${key} = ${ticks} (${us.toFixed(3)} us)`,t)}
+
+let socket;function connectWs(){socket=new WebSocket(WS_URL);setConn(false,'连接中');socket.onopen=()=>setConn(true,'已连接');socket.onclose=()=>{setConn(false,'断开，重连中');setTimeout(connectWs,1000)};socket.onerror=()=>setConn(false,'错误');socket.onmessage=(ev)=>{const now=Date.now();const raw=String(ev.data||'');const lines=raw.split(/\r?\n/).filter(l=>l.trim());if(lines.length===0)return;const prev=state.lastWsMsgT||now;const span=Math.max(1,Math.min(200,now-prev));state.lastWsMsgT=now;lines.forEach((l,i)=>{const t=lines.length===1?now:prev+span*(i+1)/lines.length;ingestLine(l.trim(),t)})}}
+
+function makeChartOptions(){return {responsive:true,maintainAspectRatio:false,animation:false,normalized:true,interaction:{mode:'nearest',intersect:false},plugins:{legend:{labels:{color:'#b7c3df'}},tooltip:{enabled:true,callbacks:{title:function(items){return items&&items.length?fmtTime(items[0].parsed.x):'';}}}},scales:{x:{type:'linear',min:Date.now()-10000,max:Date.now(),grid:{color:'rgba(160,180,220,.12)'},ticks:{color:'#aab7d4',maxTicksLimit:10,callback:function(v){return fmtTime(v);}}},y:{beginAtZero:true,grid:{color:'rgba(160,180,220,.12)'},ticks:{color:'#aab7d4'}}}};}
+
+const measurePlugin={
+  id:'measurePlugin',
+  afterDraw(chart){
+    if(chart.canvas.id!=='runtimeChart'||!state.rtMeasure)return;
+    const xScale=chart.scales.x, area=chart.chartArea;
+    if(!xScale||!area)return;
+    if(state.rtM1==null||state.rtM2==null){
+      const min=xScale.min, max=xScale.max, span=max-min;
+      state.rtM1=min+span*0.35; state.rtM2=min+span*0.65;
+      updateMeasureText();
+    }
+    const ctx=chart.ctx;
+    const lines=[{v:state.rtM1,c:'#f6c34a',name:'A'},{v:state.rtM2,c:'#ff5f57',name:'B'}];
+    ctx.save();
+    for(const l of lines){
+      const x=xScale.getPixelForValue(l.v);
+      if(x<area.left||x>area.right)continue;
+      ctx.beginPath();ctx.setLineDash([6,4]);ctx.lineWidth=2;ctx.strokeStyle=l.c;
+      ctx.moveTo(x,area.top);ctx.lineTo(x,area.bottom);ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle=l.c;ctx.font='bold 12px Microsoft YaHei, Segoe UI, Arial';
+      ctx.fillText(l.name+' '+fmtTime(l.v),Math.min(x+6,area.right-96),area.top+16);
+    }
+    const x1=xScale.getPixelForValue(state.rtM1), x2=xScale.getPixelForValue(state.rtM2);
+    if(Math.min(x1,x2)<area.right&&Math.max(x1,x2)>area.left){
+      const y=area.top+28;ctx.beginPath();ctx.setLineDash([3,3]);ctx.lineWidth=1;ctx.strokeStyle='rgba(86,224,255,.9)';ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+};
+Chart.register(measurePlugin);
+const runtimeChart=new Chart(document.getElementById('runtimeChart'),{type:'line',data:{datasets:[{label:'Runtime us',data:[],borderColor:'#51b7ff',backgroundColor:'rgba(81,183,255,.30)',fill:false,tension:0,pointRadius:0,borderWidth:2}]},options:makeChartOptions()});runtimeChart.options.scales.y.title={display:true,text:'us',color:'#aab7d4'};runtimeChart.options.scales.y.beginAtZero=false;
+const loadChart=new Chart(document.getElementById('loadChart'),{type:'line',data:{datasets:[{label:'CPU Load %',data:[],borderColor:'#40d97a',backgroundColor:'rgba(64,217,122,.18)',fill:true,tension:.16,pointRadius:0,borderWidth:2,segment:{borderColor:ctx=>getLoadColor(ctx.p1&&ctx.p1.parsed?ctx.p1.parsed.y:0)},pointBackgroundColor:ctx=>getLoadColor(ctx.parsed?ctx.parsed.y:0),pointBorderColor:ctx=>getLoadColor(ctx.parsed?ctx.parsed.y:0)}]},options:makeChartOptions()});loadChart.options.scales.y.title={display:true,text:'%',color:'#aab7d4'};loadChart.options.scales.y.max=100;
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function zoomWindowByMouse(ev, canvas, chart, visibleMs, viewEnd, factor, minMs, maxMs){
+  const x=chart.scales.x;
+  const area=chart.chartArea;
+  const rect=canvas.getBoundingClientRect();
+  let px=ev && Number.isFinite(ev.clientX) ? ev.clientX-rect.left : (area.left+area.right)/2;
+  px=clamp(px,area.left,area.right);
+  const oldStart=viewEnd-visibleMs;
+  const ratio=(px-area.left)/Math.max(1,(area.right-area.left));
+  const anchorTime=oldStart+ratio*visibleMs;
+  const newVisible=clamp(visibleMs*factor,minMs,maxMs);
+  const newStart=anchorTime-ratio*newVisible;
+  const newEnd=newStart+newVisible;
+  return {visibleMs:newVisible,viewEnd:newEnd};
+}
+function hasMeasureMarkers(){
+  return state.rtMeasure&&state.rtM1!=null&&state.rtM2!=null&&Number.isFinite(state.rtM1)&&Number.isFinite(state.rtM2);
+}
+function zoomRuntimeWindowForMeasure(factor,minMs,maxMs){
+  if(!hasMeasureMarkers()) return null;
+  const a=Math.min(state.rtM1,state.rtM2);
+  const b=Math.max(state.rtM1,state.rtM2);
+  const delta=Math.max(1,b-a);
+  const markerMinWindow=Math.max(minMs,delta/0.82,40);
+  const visibleMs=clamp(state.rtVisibleMs*factor,markerMinWindow,maxMs);
+  const center=(a+b)/2;
+  return {visibleMs,viewEnd:center+visibleMs/2};
+}
+function keepMeasureMarkersInWindow(start,end,series){
+  if(!hasMeasureMarkers()) return {start,end};
+  const a=Math.min(state.rtM1,state.rtM2);
+  const b=Math.max(state.rtM1,state.rtM2);
+  let requiredStart=a;
+  let requiredEnd=b;
+  if(series&&series.length){
+    const center=(a+b)/2;
+    const c=lowerBoundSeries(series,center);
+    const left=clamp(c-2,0,series.length-1);
+    const right=clamp(c+2,0,series.length-1);
+    requiredStart=Math.min(requiredStart,series[left].x);
+    requiredEnd=Math.max(requiredEnd,series[right].x);
+  }
+  let span=Math.max(1,end-start);
+  const needed=Math.max(span,(requiredEnd-requiredStart)/0.86,40);
+  if(needed>span){
+    const center=(requiredStart+requiredEnd)/2;
+    span=needed;
+    start=center-span/2;
+    end=center+span/2;
+  }
+  const pad=Math.max(2,span*0.06);
+  if(requiredStart<start+pad){
+    const shift=(start+pad)-requiredStart;
+    start-=shift;
+    end-=shift;
+  }
+  if(requiredEnd>end-pad){
+    const shift=requiredEnd-(end-pad);
+    start+=shift;
+    end+=shift;
+  }
+  return {start,end};
+}
+function bindWheel(canvas,kind){
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const zoomFactor=e.deltaY>0?1.18:0.85;
+    const fineZoomFactor=e.deltaY>0?1.12:0.82;
+    if(kind==='runtime'){
+      if(e.shiftKey){
+        state.rtFollow=false;
+        state.rtViewEnd+=(e.deltaY>0?1:-1)*state.rtVisibleMs*.12;
+        document.getElementById('rtFollow').checked=false;
+      }else if(e.ctrlKey){
+        state.rtFollow=false;
+        document.getElementById('rtFollow').checked=false;
+        // 测量模式下以 A/B 标尺中心为锚点缩放，并保证两条标尺始终留在当前视窗内。
+        // 非测量模式仍以鼠标位置为锚点做精细缩放。
+        const minWin=getRuntimeMinWindowMs();
+        const r=zoomRuntimeWindowForMeasure(fineZoomFactor,minWin,120000)||
+          zoomWindowByMouse(e,canvas,runtimeChart,state.rtVisibleMs,state.rtViewEnd,fineZoomFactor,minWin,120000);
+        state.rtVisibleMs=r.visibleMs;
+        state.rtViewEnd=r.viewEnd;
+      }else{
+        state.rtVisibleMs=clamp(state.rtVisibleMs*zoomFactor,500,120000);
+        if(!state.rtFollow){
+          const x=runtimeChart.scales.x;
+          const center=((x&&Number.isFinite(x.min)&&Number.isFinite(x.max))?(x.min+x.max)/2:state.rtViewEnd-state.rtVisibleMs/2);
+          state.rtViewEnd=center+state.rtVisibleMs/2;
+        }
+      }
+      renderRuntimeChart(true);
+    }else{
+      if(e.shiftKey){
+        state.loadFollow=false;
+        state.loadViewEnd+=(e.deltaY>0?1:-1)*state.loadVisibleMs*.12;
+        document.getElementById('loadFollow').checked=false;
+      }else if(e.ctrlKey){
+        state.loadFollow=false;
+        document.getElementById('loadFollow').checked=false;
+        const r=zoomWindowByMouse(e,canvas,loadChart,state.loadVisibleMs,state.loadViewEnd,fineZoomFactor,200,300000);
+        state.loadVisibleMs=r.visibleMs;
+        state.loadViewEnd=r.viewEnd;
+      }else{
+        state.loadVisibleMs=clamp(state.loadVisibleMs*zoomFactor,1000,300000);
+        if(!state.loadFollow){
+          const x=loadChart.scales.x;
+          const center=((x&&Number.isFinite(x.min)&&Number.isFinite(x.max))?(x.min+x.max)/2:state.loadViewEnd-state.loadVisibleMs/2);
+          state.loadViewEnd=center+state.loadVisibleMs/2;
+        }
+      }
+      renderLoadChart(true);
+    }
+  },{passive:false});
+}
+bindWheel(document.getElementById('runtimeChart'),'runtime');bindWheel(document.getElementById('loadChart'),'load');
+function updateMeasureText(){
+  const el=document.getElementById('rtMeasureText');
+  if(!el)return;
+  if(!state.rtMeasure||state.rtM1==null||state.rtM2==null){el.textContent='Δ --';return;}
+  const dt=Math.abs(state.rtM2-state.rtM1);
+  el.textContent=dt>=1000?('Δ '+(dt/1000).toFixed(3)+' s'):('Δ '+dt.toFixed(3)+' ms');
+}
+function setRuntimePaused(paused){
+  state.rtPaused=paused;
+  const btn=document.getElementById('rtPauseBtn');
+  if(btn){btn.textContent=paused?'继续曲线':'暂停曲线';btn.classList.toggle('primary',paused);}
+}
+function setRuntimeMeasure(enabled){
+  state.rtMeasure=enabled;
+  if(enabled){
+    setRuntimePaused(true);
+    state.rtFollow=false;
+    document.getElementById('rtFollow').checked=false;
+    if(state.rtMeasureKey!==state.selectedKey){state.rtM1=null;state.rtM2=null;}
+    state.rtMeasureKey=state.selectedKey||'';
+    const x=runtimeChart.scales.x;
+    const min=x?x.min:(Date.now()-state.rtVisibleMs), max=x?x.max:Date.now(), span=max-min;
+    if(state.rtM1==null||state.rtM2==null||state.rtM1<min||state.rtM1>max||state.rtM2<min||state.rtM2>max){state.rtM1=min+span*0.35;state.rtM2=min+span*0.65;}
+  }else{state.rtDragging=null;state.rtMeasureKey='';}
+  updateMeasureText();
+  renderRuntimeChart(true);
+}
+function bindMeasureDrag(canvas){
+  function getXValue(ev){const r=canvas.getBoundingClientRect();const px=ev.clientX-r.left;const x=runtimeChart.scales.x;let v=x.getValueForPixel(px);v=Math.max(x.min,Math.min(x.max,v));return v;}
+  canvas.addEventListener('pointerdown',ev=>{
+    if(!state.rtMeasure)return;
+    ev.preventDefault();
+    const r=canvas.getBoundingClientRect();const px=ev.clientX-r.left;const x=runtimeChart.scales.x;
+    const p1=x.getPixelForValue(state.rtM1), p2=x.getPixelForValue(state.rtM2);
+    state.rtDragging=Math.abs(px-p1)<=Math.abs(px-p2)?'m1':'m2';
+    canvas.setPointerCapture(ev.pointerId);
+  });
+  canvas.addEventListener('pointermove',ev=>{
+    if(!state.rtMeasure||!state.rtDragging)return;
+    const v=getXValue(ev);
+    if(state.rtDragging==='m1')state.rtM1=v;else state.rtM2=v;
+    updateMeasureText();runtimeChart.update('none');
+  });
+  function stop(ev){if(state.rtDragging){try{canvas.releasePointerCapture(ev.pointerId)}catch(e){} state.rtDragging=null;}}
+  canvas.addEventListener('pointerup',stop);canvas.addEventListener('pointercancel',stop);canvas.addEventListener('mouseleave',()=>{state.rtDragging=null});
+}
+bindMeasureDrag(document.getElementById('runtimeChart'));
+
+function selectKey(key){const changed=state.selectedKey!==key;state.selectedKey=key;if(changed&&state.rtMeasure){state.rtMeasureKey=key||'';state.rtM1=null;state.rtM2=null;state.rtDragging=null;}document.getElementById('runtimeChartTitle').textContent=key?`${displayKey(key)} 运行时间曲线`:'运行时间曲线';renderRuntimeTable();renderRuntimeChart(true)}
+function renderRuntimeTable(){const tbody=document.getElementById('runtimeTable');const maxCur=Math.max(1,...[...state.objects.values()].map(o=>o.currentUs));const q=state.search.toLowerCase();const rows=sortedObjects().filter(o=>(!q||o.key.toLowerCase().includes(q)||displayKey(o.key).toLowerCase().includes(q))).map(o=>{const pct=Math.min(100,o.currentUs/maxCur*100);return `<tr data-key="${o.key}" class="${o.key===state.selectedKey?'selected-row':''}"><td><span class="tag ${o.type==='Runnable'?'r':''}">${o.type}</span></td><td class="object-cell" title="${o.key}">${displayKey(o.key)}</td><td>${o.currentUs.toFixed(3)}</td><td>${Number.isFinite(o.minUs)?o.minUs.toFixed(3):'--'}</td><td>${o.avgUs.toFixed(3)}</td><td>${o.maxUs.toFixed(3)}</td><td><div style="display:grid;grid-template-columns:1fr 44px;gap:8px;align-items:center"><div class="bar"><span style="width:${pct}%"></span></div><span>${pct.toFixed(0)}%</span></div></td></tr>`}).join('');tbody.innerHTML=rows||'<tr><td colspan="7" style="text-align:center;color:#9eabc7">等待数据...</td></tr>'}
+function renderSummary(){const arr=sortedObjects();const cur=state.selectedKey?state.objects.get(state.selectedKey):null;document.getElementById('frameCount').textContent=state.frameCount;document.getElementById('fps').textContent=state.fps.toFixed(0);document.getElementById('taskCount').textContent=arr.filter(o=>o.type==='Task').length;document.getElementById('runnableCount').textContent=arr.filter(o=>o.type==='Runnable').length;document.getElementById('maxCurrentUs').textContent=Math.max(0,...arr.map(o=>o.currentUs)).toFixed(3);document.getElementById('currentObjName').textContent=cur?displayKey(cur.key):'等待数据...';document.getElementById('currentObjMeta').textContent=cur?`${cur.type} #${cur.id} · ${cur.count} samples · ${cur.currentUs.toFixed(3)} us`:'--';document.getElementById('logList').textContent=state.logs.join('\n')}
+function decimateMinMax(points,maxBuckets=900){
+  if(points.length<=maxBuckets)return points;
+  const out=[], bucket=Math.ceil(points.length/maxBuckets);
+  for(let i=0;i<points.length;i+=bucket){
+    const slice=points.slice(i,i+bucket);
+    let min=slice[0], max=slice[0];
+    for(const p of slice){if(p.y<min.y)min=p;if(p.y>max.y)max=p}
+    if(min.x<=max.x){out.push(min); if(max!==min)out.push(max)}else{out.push(max); if(max!==min)out.push(min)}
+  }
+  return out;
+}
+function calcTightYAxis(data,currentUs){
+  if(!data.length){const c=Math.max(1,currentUs||1);return {min:Math.max(0,c*0.92),max:c*1.08+1};}
+  let minY=Infinity,maxY=-Infinity;
+  for(const p of data){if(p.y<minY)minY=p.y;if(p.y>maxY)maxY=p.y}
+  let span=maxY-minY;
+  if(span<0.001) span=Math.max(3,Math.abs(maxY)*0.05);
+  const pad=Math.max(1,span*0.20);
+  return {min:Math.max(0,minY-pad),max:maxY+pad};
+}
+function lowerBoundSeries(series,x){
+  let lo=0,hi=series.length;
+  while(lo<hi){const mid=(lo+hi)>>1;if(series[mid].x<x)lo=mid+1;else hi=mid;}
+  return lo;
+}
+function getRuntimeMinWindowMs(){
+  // Ctrl+滚轮不能无限放大到小于数据密度，否则窗口内没有足够采样点，只会看到一根横线。
+  // 这里根据当前对象最近采样间隔估算最小可视窗口，至少保留约 24 个点用于观察波动。
+  const o=state.selectedKey?state.objects.get(state.selectedKey):null;
+  const s=o&&o.series?o.series:[];
+  if(s.length<8) return 80;
+  const gaps=[];
+  const start=Math.max(1,s.length-80);
+  for(let i=start;i<s.length;i++){const g=s[i].x-s[i-1].x;if(g>0&&g<1000)gaps.push(g);}
+  if(!gaps.length) return 80;
+  gaps.sort((a,b)=>a-b);
+  const med=gaps[Math.floor(gaps.length/2)];
+  return clamp(med*24,80,2000);
+}
+function adjustRuntimeWindowToSamples(series,start,end,minSamples=24){
+  // 在非常小的显示窗口内，如果实际采样点太少，则围绕当前窗口中心自动扩展到包含足够样本。
+  // 这样 Ctrl 放大后不会只显示窗口外补点形成的水平线。
+  if(!series.length) return {start,end};
+  let l=lowerBoundSeries(series,start);
+  let r=lowerBoundSeries(series,end);
+  const inside=r-l;
+  if(inside>=Math.min(minSamples,series.length)) return {start,end};
+  const center=(start+end)/2;
+  let c=lowerBoundSeries(series,center);
+  let half=Math.floor(minSamples/2);
+  let left=clamp(c-half,0,Math.max(0,series.length-1));
+  let right=clamp(left+minSamples-1,0,series.length-1);
+  left=clamp(right-minSamples+1,0,series.length-1);
+  const pad=Math.max(2,(series[right].x-series[left].x)*0.06);
+  return {start:series[left].x-pad,end:series[right].x+pad};
+}
+function buildRuntimeViewData(series,start,end){
+  if(!series.length) return [];
+  const l=lowerBoundSeries(series,start);
+  const r=lowerBoundSeries(series,end);
+  // 只取真实采样点，不再人为生成水平线。
+  // 左右各补一个真实邻近点，用于保持线段连续，但不会用 start/end 伪造点。
+  const from=Math.max(0,l-1);
+  const to=Math.min(series.length,r+1);
+  return series.slice(from,to);
+}
+function renderRuntimeChart(force=false){
+  if(!state.selectedKey||!state.objects.has(state.selectedKey))return;
+  const now=Date.now();
+  if(state.rtPaused&&!force)return;
+  if(!force&&now-state.lastRtChartRender<CHART_INTERVAL)return;
+  state.lastRtChartRender=now;
+  const o=state.objects.get(state.selectedKey);
+  if(state.rtMeasure&&state.rtMeasureKey!==state.selectedKey){state.rtMeasureKey=state.selectedKey;state.rtM1=null;state.rtM2=null;state.rtDragging=null;}
+  if(state.rtFollow)state.rtViewEnd=now;
+  let start=state.rtViewEnd-state.rtVisibleMs;
+  let end=state.rtViewEnd;
+
+  // 最新值落在显示窗口内时立即补入 series，避免右侧最新曲线延迟。
+  if(o.lastT>=start&&o.lastT<=end){
+    const last=o.series[o.series.length-1];
+    if(!last||last.x!==o.lastT) o.series.push({x:o.lastT,y:o.currentUs});
+  }
+
+  const adjusted=adjustRuntimeWindowToSamples(o.series,start,end,24);
+  start=adjusted.start; end=adjusted.end;
+  const measuredWindow=keepMeasureMarkersInWindow(start,end,o.series);
+  start=measuredWindow.start; end=measuredWindow.end;
+  const viewSpan=end-start;
+  const data=buildRuntimeViewData(o.series,start,end);
+  const viewData=decimateMinMax(data,900);
+  runtimeChart.data.datasets[0].data=viewData;
+  runtimeChart.data.datasets[0].label=displayKey(o.key);
+  runtimeChart.data.datasets[0].pointRadius=(viewSpan<1200||state.rtMeasure)?1.8:0;
+  runtimeChart.options.scales.x.min=start;
+  runtimeChart.options.scales.x.max=end;
+  const y=calcTightYAxis(data,o.currentUs);
+  runtimeChart.options.scales.y.min=y.min;
+  runtimeChart.options.scales.y.max=y.max;
+  document.getElementById('rtWindowLabel').textContent=(viewSpan/1000).toFixed(3).replace(/0+$/,'').replace(/\.$/,'')+'s';
+  if(state.rtMeasure){
+    const span=end-start;
+    if(state.rtM1==null||state.rtM2==null){state.rtMeasureKey=state.selectedKey;state.rtM1=start+span*.35;state.rtM2=start+span*.65;}
+    // 测量线保持真实时间戳，不随数据重算；缩放时由 x 轴自动同步拉伸/缩小。
+    updateMeasureText();
+  }
+  runtimeChart.update('none');
+}
+function getLoadWindowMs(){return Math.max(10,Number(document.getElementById('loadWindowMs').value)||100)}
+function detectLoadMode(windowEvents){
+  // Task 和 Runnable 不会同时作为有效输入出现。为避免历史残留，按当前窗口内最新事件类型自动判断。
+  for(let i=windowEvents.length-1;i>=0;i--){
+    if(windowEvents[i].type==='Task') return 'task';
+    if(windowEvents[i].type==='Runnable') return 'runnable';
+  }
+  return 'none';
+}
+function calcLoad(){
+  const now=Date.now(), windowMs=getLoadWindowMs(), start=now-windowMs;
+  const windowEvents=[];
+  for(let i=state.events.length-1;i>=0;i--){
+    const e=state.events[i];
+    if(e.t<start) break;
+    windowEvents.push(e);
+  }
+  windowEvents.reverse();
+
+  const mode=detectLoadMode(windowEvents);
+  const by=new Map();
+  let totalUs=0, cnt=0, scheduleUs=0, scheduleCnt=0, taskNetUs=0, taskNetCnt=0;
+
+  for(const e of windowEvents){
+    if(mode==='task' && e.type!=='Task') continue;
+    if(mode==='runnable' && e.type!=='Runnable') continue;
+    if(mode==='none') continue;
+
+    const old=by.get(e.key)||{us:0,count:0,type:e.type,id:e.id};
+    old.us+=e.us;
+    old.count++;
+    by.set(e.key,old);
+
+    if(mode==='task'){
+      if(e.id===0){
+        scheduleUs+=e.us;
+        scheduleCnt++;
+      }else{
+        taskNetUs+=e.us;
+        taskNetCnt++;
+      }
+    }else if(mode==='runnable'){
+      totalUs+=e.us;
+      cnt++;
+    }
+  }
+
+  const windowUs=windowMs*1000;
+  const measurementDeductUs=windowUs*(MEASURE_OVERHEAD_PCT/100);
+  let pct=0;
+  let osInterruptUs=0;
+  if(mode==='task'){
+    // Task模式：OS_TASK_0 在显示上等价为 OS_SCHEDULE_RuntimeOnce。
+    // CPU负载 = OS_SCHEDULE_RuntimeOnce窗口累计时间 / 窗口时间 × 100% - 2%。
+    pct=Math.max(0,(scheduleUs/windowUs*100)-MEASURE_OVERHEAD_PCT);
+    totalUs=Math.max(0,scheduleUs-measurementDeductUs);
+    cnt=scheduleCnt;
+    osInterruptUs=Math.max(0,scheduleUs-taskNetUs-measurementDeductUs);
+  }else if(mode==='runnable'){
+    pct=totalUs/windowUs*100;
+  }
+  return {now,windowMs,totalUs,cnt,pct,by,mode,rawCnt:windowEvents.length,scheduleUs,scheduleCnt,taskNetUs,taskNetCnt,measurementDeductUs,osInterruptUs};
+}
+function sampleLoad(){const t=Date.now();if(t-state.lastLoadSample<LOAD_SAMPLE_INTERVAL)return null;state.lastLoadSample=t;const info=calcLoad();state.loadPeak=Math.max(state.loadPeak,info.pct);state.loadSeries.push({x:t,y:info.pct});if(state.loadSeries.length>MAX_LOAD_POINTS)state.loadSeries.splice(0,state.loadSeries.length-MAX_LOAD_POINTS);const keepStart=t-Math.max(300000,state.loadVisibleMs*2);while(state.events.length&&state.events[0].t<keepStart)state.events.shift();return info}
+function renderLoadChart(force=false){const now=Date.now();if(!force&&now-state.lastLoadChartRender<CHART_INTERVAL)return;state.lastLoadChartRender=now;if(state.loadFollow)state.loadViewEnd=now;const start=state.loadViewEnd-state.loadVisibleMs;const data=state.loadSeries.filter(p=>p.x>=start&&p.x<=state.loadViewEnd);loadChart.data.datasets[0].data=data;loadChart.options.scales.x.min=start;loadChart.options.scales.x.max=state.loadViewEnd;const latest=data.length?data[data.length-1].y:calcLoad().pct;const latestColor=getLoadColor(latest);loadChart.data.datasets[0].borderColor=latestColor;loadChart.data.datasets[0].backgroundColor=latestColor==='#40d97a'?'rgba(64,217,122,.18)':(latestColor==='#f4c542'?'rgba(244,197,66,.20)':(latestColor==='#ff9a7a'?'rgba(255,154,122,.20)':'rgba(212,0,0,.22)'));const maxY=Math.max(100,...data.map(p=>p.y));state.loadYMax=Math.max(state.loadYMax||100,Math.ceil(maxY*1.15/20)*20);loadChart.options.scales.y.max=state.loadYMax;document.getElementById('loadViewLabel').textContent=(state.loadVisibleMs/1000).toFixed(1)+'s';updateLoadAlarm(latest);loadChart.update('none')}
+function renderLoadTable(info=calcLoad()){
+  updateLoadAlarm(info.pct);
+  document.getElementById('loadNow').textContent=info.pct.toFixed(2);
+  document.getElementById('loadPeak').textContent=state.loadPeak.toFixed(2);
+  document.getElementById('loadUsedUs').textContent=info.totalUs.toFixed(1);
+  document.getElementById('loadEventCnt').textContent=info.cnt;
+  const modeText = info.mode==='task' ? 'Task / OS_SCHEDULE' : (info.mode==='runnable' ? 'Runnable / 累加' : '等待数据');
+  const loadModeEl=document.getElementById('loadMode');
+  if(loadModeEl) loadModeEl.textContent=modeText;
+
+  const denominatorUs = info.windowMs*1000;
+  const arr=[...info.by.entries()].map(([key,v])=>{
+    let pct;
+    if(info.mode==='task'){
+      pct = v.us/denominatorUs*100;
+    }else{
+      pct = v.us/denominatorUs*100;
+    }
+    return {key,...v,pct,synthetic:false};
+  }).sort((a,b)=>a.type===b.type?a.id-b.id:(a.type==='Task'?-1:1));
+
+  if(info.mode==='task'){
+    arr.push({key:'OS自身调度+中断负载',type:'Derived',id:900001,us:info.osInterruptUs,count:'-',pct:info.osInterruptUs/denominatorUs*100,synthetic:true});
+    arr.push({key:'测量开销',type:'Deduct',id:900002,us:info.measurementDeductUs,count:'-',pct:-MEASURE_OVERHEAD_PCT,synthetic:true});
+  }
+
+  document.getElementById('loadTable').innerHTML=arr.map(r=>{
+    const pctText = r.synthetic&&r.pct<0 ? ('-'+Math.abs(r.pct).toFixed(2)+'%') : (r.pct.toFixed(2)+'%');
+    const barWidth = Math.min(100,Math.abs(r.pct));
+    const shownKey = r.synthetic ? r.key : displayKey(r.key);
+    return `<tr><td><span class="tag ${r.type==='Runnable'?'r':''}">${r.type}</span></td><td class="object-cell" title="${r.key}">${shownKey}</td><td>${r.us.toFixed? r.us.toFixed(1):r.us}</td><td>${r.count}</td><td><div style="display:grid;grid-template-columns:1fr 58px;gap:8px;align-items:center"><div class="bar"><span style="width:${barWidth}%"></span></div><span>${pctText}</span></div></td></tr>`;
+  }).join('')||'<tr><td colspan="5" style="text-align:center;color:#9eabc7">等待负载数据...</td></tr>';
+}
+function renderSnapshots(){const box=document.getElementById('snapshotList');box.innerHTML=state.snapshots.map(s=>`<div class="snapshot"><b>${s.time}</b><br>来源：${s.source}；窗口：${s.windowMs}ms；负载：${s.pct.toFixed(2)}%；耗时：${s.totalUs.toFixed(1)}us；事件：${s.cnt}</div>`).join('')||'<div class="snapshot">暂无快照</div>'}
+function captureSnapshot(){const info=calcLoad();state.snapshots.unshift({time:fmtTime(Date.now()),source:info.mode,windowMs:info.windowMs,pct:info.pct,totalUs:info.totalUs,cnt:info.cnt,rows:[...info.by.entries()].map(([key,v])=>({key,...v}))});if(state.snapshots.length>30)state.snapshots.pop();renderSnapshots()}
+function exportCsv(){if(!state.snapshots.length){alert('没有快照');return}let csv='time,source,window_ms,load_pct,total_us,event_count,key,type,id,object_us,object_count\n';for(const s of state.snapshots){for(const r of s.rows){csv += `${s.time},${s.source},${s.windowMs},${s.pct.toFixed(4)},${s.totalUs.toFixed(3)},${s.cnt},${r.key},${r.type},${r.id},${r.us.toFixed(3)},${r.count}\n`}}const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='runtime_load_snapshot.csv';a.click();URL.revokeObjectURL(a.href)}
+function setupObjectMapImport(){
+  const taskBtn=document.getElementById('importTaskMapBtn');
+  const runBtn=document.getElementById('importRunnableMapBtn');
+  const taskInput=document.getElementById('taskMapFile');
+  const runInput=document.getElementById('runnableMapFile');
+  if(taskBtn&&taskInput){
+    taskBtn.onclick=()=>{
+      if(window.electronAPI&&window.electronAPI.selectObjectMapFile){
+        window.electronAPI.selectObjectMapFile('task');
+        return;
+      }
+      taskInput.value='';
+      taskInput.click();
+    };
+    taskInput.onchange=()=>{const f=taskInput.files&&taskInput.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>importObjectMap('task',reader.result,f.name);reader.readAsText(f,'utf-8');};
+  }
+  if(runBtn&&runInput){
+    runBtn.onclick=()=>{
+      if(window.electronAPI&&window.electronAPI.selectObjectMapFile){
+        window.electronAPI.selectObjectMapFile('runnable');
+        return;
+      }
+      runInput.value='';
+      runInput.click();
+    };
+    runInput.onchange=()=>{const f=runInput.files&&runInput.files[0];if(!f)return;const reader=new FileReader();reader.onload=()=>importObjectMap('runnable',reader.result,f.name);reader.readAsText(f,'utf-8');};
+  }
+  updateObjectMapButtons();
+}
+function clearAll(){state.objects.clear();state.events=[];state.loadSeries=[];state.logs=[];state.snapshots=[];state.selectedKey='';state.frameCount=0;state.lastFrameCount=0;state.fps=0;state.loadPeak=0;state.rtYMax=10;state.loadYMax=100;state.rtMeasureKey='';state.rtM1=null;state.rtM2=null;state.rtDragging=null;runtimeChart.data.datasets[0].data=[];loadChart.data.datasets[0].data=[];runtimeChart.options.scales.y.min=undefined;runtimeChart.options.scales.y.max=undefined;loadChart.options.scales.y.max=100;runtimeChart.update('none');loadChart.update('none');renderSnapshots();renderAll(true)}
+function renderAll(force=false){const now=Date.now();if(force||now-state.lastUiRender>=UI_INTERVAL){state.fps=(state.frameCount-state.lastFrameCount)/(UI_INTERVAL/1000);state.lastFrameCount=state.frameCount;renderSummary();state.lastUiRender=now}if(force||now-state.lastTableRender>=TABLE_INTERVAL){renderRuntimeTable();const info=calcLoad();renderLoadTable(info);state.lastTableRender=now}const sampledInfo=sampleLoad();if(sampledInfo)renderLoadTable(sampledInfo);renderRuntimeChart(force);renderLoadChart(force)}
+function loop(){renderAll(false);requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+
+
+function escapeHtml(v){return String(v==null?'':v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function reportNum(v,d=3){return Number.isFinite(v)?Number(v).toFixed(d):'--'}
+function buildReportHtml(){
+  const generatedAt=new Date();
+  const reportId='RTT-'+generatedAt.getFullYear()+String(generatedAt.getMonth()+1).padStart(2,'0')+String(generatedAt.getDate()).padStart(2,'0')+'-'+String(generatedAt.getHours()).padStart(2,'0')+String(generatedAt.getMinutes()).padStart(2,'0')+String(generatedAt.getSeconds()).padStart(2,'0');
+  const objs=sortedObjects();
+  const info=calcLoad();
+  const rtImg=runtimeChart.toBase64Image('image/png',1.0);
+  const loadImg=loadChart.toBase64Image('image/png',1.0);
+  const taskCnt=objs.filter(o=>o.type==='Task').length;
+  const runCnt=objs.filter(o=>o.type==='Runnable').length;
+  const maxObj=objs.reduce((m,o)=>!m||o.maxUs>m.maxUs?o:m,null);
+  const curMaxObj=objs.reduce((m,o)=>!m||o.currentUs>m.currentUs?o:m,null);
+  const avgLoad=state.loadSeries.length?state.loadSeries.reduce((sum,p)=>sum+p.y,0)/state.loadSeries.length:0;
+  const loadModeZh=info.mode==='task'?'Task 模式：CPU负载 = OS_SCHEDULE_RuntimeOnce窗口累计 / 窗口时间 ×100% - 2%':(info.mode==='runnable'?'Runnable 模式：累加全部 Runnable':'未识别到有效负载输入');
+  const loadModeEn=info.mode==='task'?'Task mode: CPU Load = OS_SCHEDULE_RuntimeOnce accumulated time / window time ×100% - 2%':(info.mode==='runnable'?'Runnable mode: accumulate all Runnable objects':'No valid load source detected');
+  const objectRowsZh=objs.map(o=>`<tr><td>${escapeHtml(o.type)}</td><td>${escapeHtml(displayKey(o.key))}</td><td>${reportNum(o.currentUs)}</td><td>${reportNum(o.minUs)}</td><td>${reportNum(o.avgUs)}</td><td>${reportNum(o.maxUs)}</td><td>${o.count}</td></tr>`).join('')||'<tr><td colspan="7">无 RuntimeOnce 数据</td></tr>';
+  const objectRowsEn=objs.map(o=>`<tr><td>${escapeHtml(o.type)}</td><td>${escapeHtml(displayKey(o.key))}</td><td>${reportNum(o.currentUs)}</td><td>${reportNum(o.minUs)}</td><td>${reportNum(o.avgUs)}</td><td>${reportNum(o.maxUs)}</td><td>${o.count}</td></tr>`).join('')||'<tr><td colspan="7">No RuntimeOnce data</td></tr>';
+  const denominatorUs=info.windowMs*1000;
+  const loadItems=[...info.by.entries()].map(([key,v])=>{
+    const pct=v.us/denominatorUs*100;
+    return {key,...v,pct,synthetic:false};
+  }).sort((a,b)=>a.type===b.type?a.id-b.id:(a.type==='Task'?-1:1));
+  if(info.mode==='task'){
+    loadItems.push({key:'OS自身调度+中断负载',type:'Derived',id:900001,us:info.osInterruptUs,count:'-',pct:info.osInterruptUs/denominatorUs*100,synthetic:true});
+    loadItems.push({key:'测量开销',type:'Deduct',id:900002,us:info.measurementDeductUs,count:'-',pct:-MEASURE_OVERHEAD_PCT,synthetic:true});
+  }
+  const loadRowsZh=loadItems.map(r=>`<tr><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.synthetic?r.key:displayKey(r.key))}</td><td>${reportNum(r.us,1)}</td><td>${r.count}</td><td>${r.pct<0?'-'+reportNum(Math.abs(r.pct),2)+'%':reportNum(r.pct,2)+'%'}</td></tr>`).join('')||'<tr><td colspan="5">无负载窗口数据</td></tr>';
+  const loadRowsEn=loadItems.map(r=>`<tr><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.synthetic?(r.key==='OS自身调度+中断负载(反算)'?'OS scheduling + interrupt load (calculated)':'Fixed measurement overhead deduction'):displayKey(r.key))}</td><td>${reportNum(r.us,1)}</td><td>${r.count}</td><td>${r.pct<0?'-'+reportNum(Math.abs(r.pct),2)+'%':reportNum(r.pct,2)+'%'}</td></tr>`).join('')||'<tr><td colspan="5">No load-window data</td></tr>';
+  const snapshotRowsZh=state.snapshots.map((snap,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(snap.time)}</td><td>${escapeHtml(snap.source)}</td><td>${snap.windowMs}</td><td>${reportNum(snap.pct,2)}%</td><td>${reportNum(snap.totalUs,1)}</td><td>${snap.cnt}</td></tr>`).join('')||'<tr><td colspan="7">无快照记录</td></tr>';
+  const snapshotRowsEn=state.snapshots.map((snap,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(snap.time)}</td><td>${escapeHtml(snap.source)}</td><td>${snap.windowMs}</td><td>${reportNum(snap.pct,2)}%</td><td>${reportNum(snap.totalUs,1)}</td><td>${snap.cnt}</td></tr>`).join('')||'<tr><td colspan="7">No snapshots</td></tr>';
+  const level=getLoadLevel(info.pct);
+  const statusZh=getLoadStatusText(info.pct,'zh');
+  const statusEn=getLoadStatusText(info.pct,'en');
+  const conclusionZh=level==='critical'?'当前滑动窗口 CPU 负载已超过 95%，属于严重负载告警，建议立即分析高耗时对象和任务调度裕量。':(level==='high'?'当前滑动窗口 CPU 负载超过 85%，属于高负载告警，建议重点分析峰值来源和周期性抖动。':(level==='warn'?'当前滑动窗口 CPU 负载超过 60%，进入预警区间，建议继续观察趋势并结合项目阈值评估。':'当前滑动窗口 CPU 负载低于 60%，处于正常观察区间，最终判定仍需结合项目阈值与测试工况。'));
+  const conclusionEn=level==='critical'?'The current sliding-window CPU load exceeds 95%. This is a critical load alarm. Immediate analysis of high-runtime objects and scheduling margin is recommended.':(level==='high'?'The current sliding-window CPU load exceeds 85%. This is a high-load alarm. Peak source and periodic variation should be reviewed.':(level==='warn'?'The current sliding-window CPU load exceeds 60%. This is a warning range. Continue observing the trend and evaluate against project thresholds.':'The current sliding-window CPU load is below 60%, which is in the normal observation range. Final judgment shall follow project thresholds and test conditions.'));
+  const commonCss=`body{margin:0;background:#f4f6fb;color:#1e293b;font-family:Segoe UI,Microsoft YaHei,Arial,sans-serif;line-height:1.55}.page{max-width:1180px;margin:0 auto;background:#fff;min-height:100vh;padding:42px 54px;box-shadow:0 0 30px rgba(15,23,42,.12)}h1{font-size:30px;margin:0 0 8px;color:#0f172a}.meta{color:#64748b;margin-bottom:18px}.langbar{position:sticky;top:0;z-index:10;display:flex;justify-content:flex-end;gap:8px;margin:-18px -20px 18px 0}.langbar button{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:7px 12px;font-weight:700;cursor:pointer}.langbar button.active{background:#2563eb;color:white}.alarm{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:7px 12px;font-weight:800;margin:4px 0 16px}.alarm:before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor}.alarm-normal{color:#15803d;background:#dcfce7;border:1px solid #86efac}.alarm-warn{color:#a16207;background:#fef9c3;border:1px solid #fde047}.alarm-high{color:#c2410c;background:#ffedd5;border:1px solid #fdba74}.alarm-critical{color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5}h2{font-size:20px;margin:34px 0 12px;padding-left:10px;border-left:5px solid #2563eb;color:#111827}h3{font-size:16px;margin:20px 0 8px;color:#1f2937}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.card{border:1px solid #dbe3ef;border-radius:12px;padding:14px;background:#f8fafc}.label{font-size:12px;color:#64748b}.value{font-size:22px;font-weight:800;color:#0f172a;margin-top:4px}.formula{background:#eef6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;color:#1e3a8a;font-family:Consolas,monospace}table{width:100%;border-collapse:collapse;margin:10px 0 18px;font-size:13px}th,td{border:1px solid #dbe3ef;padding:8px 10px;text-align:right}th{background:#eff6ff;color:#1e3a8a}td:nth-child(1),td:nth-child(2),th:nth-child(1),th:nth-child(2){text-align:left}.chart{border:1px solid #dbe3ef;border-radius:12px;padding:12px;background:#fff;margin:12px 0}.chart img{width:100%;max-height:360px;object-fit:contain}.note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:12px}.footer{margin-top:36px;color:#64748b;font-size:12px;border-top:1px solid #e2e8f0;padding-top:14px}@media print{body{background:#fff}.page{box-shadow:none;padding:24px}.langbar{display:none}.chart img{max-height:300px}}`;
+  const headerControls=`<div class="langbar"><button id="btnZh" class="active" onclick="document.querySelector('.report-zh').style.display='block';document.querySelector('.report-en').style.display='none';this.classList.add('active');document.getElementById('btnEn').classList.remove('active');document.documentElement.lang='zh-CN'">中文</button><button id="btnEn" onclick="document.querySelector('.report-zh').style.display='none';document.querySelector('.report-en').style.display='block';this.classList.add('active');document.getElementById('btnZh').classList.remove('active');document.documentElement.lang='en'">English</button></div>`;
+  const zh=`<section class="report-zh"><h1>Runtime Observer 测试报告</h1><div class="meta">报告编号：${escapeHtml(reportId)}　|　生成时间：${escapeHtml(generatedAt.toLocaleString())}</div><div class="alarm alarm-${level}">${escapeHtml(statusZh)}：${reportNum(info.pct,2)}%</div><h2>1. 测试概况</h2><div class="grid"><div class="card"><div class="label">CPU Hz</div><div class="value">${cpuHz()}</div></div><div class="card"><div class="label">采集帧数</div><div class="value">${state.frameCount}</div></div><div class="card"><div class="label">Task 数量</div><div class="value">${taskCnt}</div></div><div class="card"><div class="label">Runnable 数量</div><div class="value">${runCnt}</div></div></div><div class="grid"><div class="card"><div class="label">当前滑动窗口</div><div class="value">${info.windowMs} ms</div></div><div class="card"><div class="label">当前 CPU 负载</div><div class="value">${reportNum(info.pct,2)}%</div></div><div class="card"><div class="label">峰值 CPU 负载</div><div class="value">${reportNum(state.loadPeak,2)}%</div></div><div class="card"><div class="label">平均曲线负载</div><div class="value">${reportNum(avgLoad,2)}%</div></div></div><h2>2. 计算方法</h2><div class="formula">RuntimeOnce_us = tick / CPU_Hz × 1,000,000<br>Task模式 CPU负载 = OS_SCHEDULE_RuntimeOnce窗口累计 / 窗口时间_us × 100% - 2%</div><p>曲线告警规则：低于 60% 显示绿色；60%~85% 显示橙黄色；85%~95% 显示浅红色；高于或等于 95% 显示深红色并触发严重告警。</p><h2>3. 总体结论</h2><p>${escapeHtml(conclusionZh)}</p><p>当前最大 Current 对象：<b>${escapeHtml(curMaxObj?displayKey(curMaxObj.key):'--')}</b>，Current = ${reportNum(curMaxObj?curMaxObj.currentUs:NaN)} us。历史最大 Max 对象：<b>${escapeHtml(maxObj?displayKey(maxObj.key):'--')}</b>，Max = ${reportNum(maxObj?maxObj.maxUs:NaN)} us。</p><h2>4. 曲线截图</h2><h3>4.1 RuntimeOnce 运行时间曲线</h3><div class="chart"><img src="${rtImg}" alt="RuntimeOnce Chart"></div><h3>4.2 CPU 整体负载曲线</h3><div class="chart"><img src="${loadImg}" alt="CPU Load Chart"></div><h2>5. RuntimeOnce 对象统计</h2><table><thead><tr><th>类型</th><th>对象</th><th>当前 us</th><th>最小 us</th><th>平均 us</th><th>最大 us</th><th>样本数</th></tr></thead><tbody>${objectRowsZh}</tbody></table><h2>6. 当前负载窗口贡献明细</h2><table><thead><tr><th>类型</th><th>对象</th><th>窗口耗时 us</th><th>事件数</th><th>贡献</th></tr></thead><tbody>${loadRowsZh}</tbody></table><h2>7. 快照记录</h2><table><thead><tr><th>序号</th><th>时间</th><th>来源</th><th>窗口 ms</th><th>负载</th><th>耗时 us</th><th>事件数</th></tr></thead><tbody>${snapshotRowsZh}</tbody></table><div class="note">说明：本报告由浏览器端根据当前采集数据自动生成。最终是否通过应结合项目定义的 CPU 负载阈值、测试工况、采集周期和任务设计进行判定。</div><div class="footer">Generated by Runtime Observer.</div></section>`;
+  const en=`<section class="report-en" style="display:none"><h1>Runtime Observer Test Report</h1><div class="meta">Report ID: ${escapeHtml(reportId)} | Generated at: ${escapeHtml(generatedAt.toLocaleString())}</div><div class="alarm alarm-${level}">${escapeHtml(statusEn)}: ${reportNum(info.pct,2)}%</div><h2>1. Test Overview</h2><div class="grid"><div class="card"><div class="label">CPU Hz</div><div class="value">${cpuHz()}</div></div><div class="card"><div class="label">Captured Frames</div><div class="value">${state.frameCount}</div></div><div class="card"><div class="label">Task Count</div><div class="value">${taskCnt}</div></div><div class="card"><div class="label">Runnable Count</div><div class="value">${runCnt}</div></div></div><div class="grid"><div class="card"><div class="label">Current Sliding Window</div><div class="value">${info.windowMs} ms</div></div><div class="card"><div class="label">Current CPU Load</div><div class="value">${reportNum(info.pct,2)}%</div></div><div class="card"><div class="label">Peak CPU Load</div><div class="value">${reportNum(state.loadPeak,2)}%</div></div><div class="card"><div class="label">Average Curve Load</div><div class="value">${reportNum(avgLoad,2)}%</div></div></div><h2>2. Calculation Method</h2><div class="formula">RuntimeOnce_us = tick / CPU_Hz × 1,000,000<br>Task mode CPU Load = OS_SCHEDULE_RuntimeOnce accumulated time / window_time_us × 100% - 2%; Runnable mode CPU Load = sum of all Runnable RuntimeOnce_us / window_time_us × 100%</div><p>Current load calculation mode: <b>${escapeHtml(loadModeEn)}</b>. In Task mode, OS_TASK_0 is displayed as OS_SCHEDULE_RuntimeOnce and participates in CPU load calculation; a fixed 2% measurement overhead is deducted.</p><p>Curve alarm rule: below 60% is green; 60% to 85% is orange-yellow; 85% to 95% is light red; 95% or above is dark red and triggers a critical alarm.</p><h2>3. Overall Conclusion</h2><p>${escapeHtml(conclusionEn)}</p><p>Maximum current object: <b>${escapeHtml(curMaxObj?displayKey(curMaxObj.key):'--')}</b>, Current = ${reportNum(curMaxObj?curMaxObj.currentUs:NaN)} us. Historical maximum object: <b>${escapeHtml(maxObj?displayKey(maxObj.key):'--')}</b>, Max = ${reportNum(maxObj?maxObj.maxUs:NaN)} us.</p><h2>4. Chart Screenshots</h2><h3>4.1 RuntimeOnce Curve</h3><div class="chart"><img src="${rtImg}" alt="RuntimeOnce Chart"></div><h3>4.2 CPU Load Curve</h3><div class="chart"><img src="${loadImg}" alt="CPU Load Chart"></div><h2>5. RuntimeOnce Object Statistics</h2><table><thead><tr><th>Type</th><th>Object</th><th>Current us</th><th>Min us</th><th>Average us</th><th>Max us</th><th>Samples</th></tr></thead><tbody>${objectRowsEn}</tbody></table><h2>6. Current Load-Window Contribution</h2><table><thead><tr><th>Type</th><th>Object</th><th>Window Runtime us</th><th>Events</th><th>Contribution</th></tr></thead><tbody>${loadRowsEn}</tbody></table><h2>7. Snapshot Records</h2><table><thead><tr><th>No.</th><th>Time</th><th>Source</th><th>Window ms</th><th>Load</th><th>Runtime us</th><th>Events</th></tr></thead><tbody>${snapshotRowsEn}</tbody></table><div class="note">Note: This report is automatically generated by the browser from the current acquisition data. The final pass/fail decision should be made according to project CPU-load thresholds, test conditions, acquisition period, and task design.</div><div class="footer">Generated by Runtime Observer.</div></section>`;
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>${escapeHtml(reportId)} Runtime Observer Test Report</title><style>${commonCss}
+
+/* ============================================================
+   Electron desktop layout patch
+   - compact top bar
+   - actions moved to Electron menu
+   - resizable/collapsible side panel
+   - resizable chart/table area
+   - full object-name display
+   ============================================================ */
+body.electron-desktop header{height:72px;padding:10px 16px 10px 20px}
+body.electron-desktop h1{font-size:24px;margin:0;white-space:nowrap}
+body.electron-desktop .sub{display:none}
+body.electron-desktop .hint{font-size:11px;opacity:.75;max-width:720px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.electron-desktop .top-right{min-width:auto;grid-template-rows:32px;gap:0}
+body.electron-desktop .top-action-row{display:none}
+body.electron-desktop .top-status-row{height:34px;padding:3px 8px;gap:7px}
+body.electron-desktop .pill{height:27px;padding:4px 9px;font-size:12px}
+body.electron-desktop .tabs{height:46px;padding:7px 18px}
+body.electron-desktop .tab{padding:8px 14px}
+body.electron-desktop .page{height:calc(100vh - 118px);padding:14px 18px;gap:0;display:none}
+body.electron-desktop .page.active{display:grid;grid-template-columns:var(--leftW,300px) 8px minmax(0,1fr);align-items:stretch}
+body.electron-desktop .page.sidebar-collapsed{grid-template-columns:0 8px minmax(0,1fr)}
+body.electron-desktop .left{width:auto;min-width:0;overflow:hidden;margin-right:0}
+body.electron-desktop .page.sidebar-collapsed .left{visibility:hidden}
+body.electron-desktop .main{min-width:0;overflow:hidden;margin-left:0}
+.desktop-v-splitter{cursor:col-resize;position:relative;margin:0 8px;background:rgba(45,57,86,.35);border-radius:10px}
+.desktop-v-splitter:hover{background:rgba(84,189,255,.38)}
+.desktop-v-splitter:before{content:'';position:absolute;top:50%;left:50%;width:2px;height:48px;background:rgba(180,198,232,.45);transform:translate(-50%,-50%);border-radius:3px}
+.desktop-h-splitter{height:8px;min-height:8px;cursor:row-resize;background:rgba(45,57,86,.35);border-radius:10px;margin:0}
+.desktop-h-splitter:hover{background:rgba(84,189,255,.38)}
+body.electron-desktop .chart-card{height:var(--rtChartH,390px);min-height:240px;max-height:70vh;flex:0 0 auto}
+body.electron-desktop .load-chart-card{height:var(--loadChartH,420px);min-height:260px;max-height:72vh;flex:0 0 auto}
+body.electron-desktop .chart-wrap{height:calc(100% - 46px)}
+body.electron-desktop .main>.card:last-child{flex:1 1 auto;min-height:210px;display:flex;flex-direction:column}
+body.electron-desktop .main>.card:last-child .table-wrap{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .main>.card:last-child .load-table{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .object-list{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .left>.card:first-child{flex:0 0 auto;overflow:visible}
+body.electron-desktop .left .card.side-tool-card{height:auto;min-height:0;flex:0 0 auto;display:block}
+body.electron-desktop .log-list{height:auto;flex:1 1 auto;min-height:0}
+body.electron-desktop .metrics{padding:8px;gap:7px}
+body.electron-desktop .metric{min-height:56px;padding:8px 10px}
+body.electron-desktop .metric .value{font-size:20px}
+body.electron-desktop .toolbar{padding:9px 14px}
+body.electron-desktop .card-title{height:42px}
+body.electron-desktop .item{height:auto;min-height:40px;align-items:flex-start}
+body.electron-desktop .item-name{white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word;line-height:1.22;flex:1}
+body.electron-desktop .item-val{flex:0 0 92px;margin-top:1px}
+.object-cell{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word;line-height:1.25}
+.object-head{text-align:left!important}
+.runtime-table col.col-type{width:80px}.runtime-table col.col-object{width:380px}.runtime-table col.col-number{width:130px}.runtime-table col.col-relative{width:180px}
+.load-detail-table col.col-type{width:90px}.load-detail-table col.col-object{width:440px}.load-detail-table col.col-number{width:150px}.load-detail-table col.col-count{width:120px}.load-detail-table col.col-percent{width:180px}
+body.electron-desktop .table-wrap,body.electron-desktop .load-table{overflow:auto;scrollbar-gutter:stable both-edges}
+.desktop-status-chip{display:inline-flex;align-items:center;gap:6px;height:27px;border:1px solid var(--line);background:rgba(255,255,255,.045);border-radius:999px;padding:4px 9px;color:var(--muted);font-size:12px;white-space:nowrap}.desktop-status-chip b{color:#dce7ff}.desktop-status-chip .mini-dot{width:8px;height:8px;border-radius:50%;background:#777;box-shadow:0 0 10px currentColor}.desktop-status-chip.ok .mini-dot{background:var(--green)}.desktop-status-chip.warn .mini-dot{background:var(--yellow)}.desktop-status-chip.bad .mini-dot{background:var(--red)}
+.sidebar-toggle-floating{position:absolute;z-index:50;left:8px;top:132px;width:30px;height:30px;border-radius:999px;background:#123653;border:1px solid #277eb1;color:#e9f8ff;display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow)}
+body.electron-desktop .page.sidebar-collapsed .sidebar-toggle-floating{display:flex}
+@media (min-width:1700px){body.electron-desktop{--leftW:420px}.runtime-table col.col-object{width:460px}.load-detail-table col.col-object{width:520px}}
+
+  </style></head><body><div class="page">${headerControls}${zh}${en}</div></body></html>`;
+}
+function exportTestReport(){
+  try{
+    renderRuntimeChart(true);renderLoadChart(true);
+    const html=buildReportHtml();
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    const ts=new Date().toISOString().replace(/[:.]/g,'-');
+    a.href=URL.createObjectURL(blob);
+    a.download='CPU_Load_Test_Report_'+ts+'.html';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }catch(e){console.error(e);alert('导出测试报告失败：'+e.message);}
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.page).classList.add('active');state.activePage=t.dataset.page;const refresh=()=>{try{runtimeChart.resize();loadChart.resize();renderAll(true);runtimeChart.update('none');loadChart.update('none')}catch(e){}};requestAnimationFrame(()=>requestAnimationFrame(refresh));setTimeout(refresh,160)});
+document.getElementById('runtimeTable').addEventListener('pointerdown',ev=>{const tr=ev.target.closest('tr[data-key]');if(tr){selectKey(tr.dataset.key);}});
+
+
+// ============================================================
+// Electron desktop integration and layout helpers
+// ============================================================
+(function initDesktopIntegration(){
+  const root = document.documentElement;
+  const cpuInput = document.getElementById('cpuHz');
+  const startupOverlay = document.getElementById('startupOverlay');
+  const startupLog = document.getElementById('startupLog');
+  const startupState = document.getElementById('startupState');
+  const startupProgressBar = document.getElementById('startupProgressBar');
+  const startupPercent = document.getElementById('startupPercent');
+  const enterMonitorBtn = document.getElementById('enterMonitorBtn');
+  const startupReady = {ports:false, backend:false, jlink:false, rtt:false, ws:false};
+  let startupClosed = false;
+  let autoEnterTimer = null;
+  try{
+    const savedHz = localStorage.getItem('rttRuntimeCpuHzDefault');
+    if(savedHz && /^\d+$/.test(savedHz)) cpuInput.value = savedHz;
+  }catch(e){}
+
+  try{
+    const leftW = localStorage.getItem('rttRuntimeDesktopLeftW');
+    if(leftW) root.style.setProperty('--leftW', clamp(Number(leftW)||300,260,420) + 'px');
+    const rtH = localStorage.getItem('rttRuntimeDesktopRtChartH');
+    if(rtH) root.style.setProperty('--rtChartH', rtH + 'px');
+    const loadH = localStorage.getItem('rttRuntimeDesktopLoadChartH');
+    if(loadH) root.style.setProperty('--loadChartH', loadH + 'px');
+    if(localStorage.getItem('rttRuntimeSidebarCollapsed') === '1'){
+      document.querySelectorAll('.page').forEach(p=>p.classList.add('sidebar-collapsed'));
+    }
+  }catch(e){}
+
+  function setChip(id, level, text){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.classList.remove('ok','warn','bad');
+    el.classList.add(level||'warn');
+    const b=el.querySelector('b');
+    if(b){
+      const name=b.textContent;
+      el.innerHTML='<span class="mini-dot"></span><b>'+name+'</b>: '+escapeHtml(text||'unknown');
+    }else{
+      el.textContent=text||'unknown';
+    }
+  }
+
+  function setStartupStep(id, level, text){
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.classList.remove('ok','warn','bad');
+    el.classList.add(level||'warn');
+    const small=el.querySelector('small');
+    if(small) small.textContent=text||'unknown';
+  }
+
+  function refreshStartupProgress(){
+    const total=Object.keys(startupReady).length;
+    const done=Object.values(startupReady).filter(Boolean).length;
+    const pct=Math.round(done/total*100);
+    if(startupProgressBar) startupProgressBar.style.width=pct+'%';
+    if(startupPercent) startupPercent.textContent=pct+'%';
+    if(startupState){
+      startupState.textContent = pct>=100 ? '连接完成，正在进入监视界面...' : `连接预检查进行中：${done}/${total}`;
+    }
+    if(pct>=100 && !startupClosed && !autoEnterTimer){
+      autoEnterTimer=setTimeout(closeStartupOverlay,900);
+    }
+  }
+
+  function closeStartupOverlay(){
+    if(startupClosed)return;
+    startupClosed=true;
+    if(startupOverlay){
+      startupOverlay.classList.add('hidden');
+      setTimeout(()=>{startupOverlay.style.display='none';},460);
+    }
+    try{runtimeChart.resize();loadChart.resize();renderAll(true);}catch(e){}
+  }
+
+  function appendStartupLog(item){
+    if(!startupLog || !item)return;
+    if(startupLog.textContent==='等待启动日志...') startupLog.textContent='';
+    const d=new Date(item.ts||Date.now());
+    const ts=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}.${String(d.getMilliseconds()).padStart(3,'0')}`;
+    startupLog.textContent += `[${ts}] [${item.source||'log'}] ${item.line||''}\n`;
+    startupLog.scrollTop=startupLog.scrollHeight;
+    if(String(item.line||'').includes('Port check result')){
+      startupReady.ports=true;
+      setStartupStep('stepPorts','ok','done');
+      refreshStartupProgress();
+    }
+  }
+
+  function applyBackendStatus(st){
+    if(!st)return;
+    if(st.backend){
+      setChip('backendStatusChip', st.backend.level||'warn', st.backend.text||'unknown');
+      startupReady.backend=st.backend.level==='ok';
+      setStartupStep('stepBackend', st.backend.level||'warn', st.backend.text||'unknown');
+    }
+    if(st.jlink){
+      setChip('jlinkStatusChip', st.jlink.level||'warn', st.jlink.text||'unknown');
+      startupReady.jlink=st.jlink.level==='ok';
+      setStartupStep('stepJlink', st.jlink.level||'warn', st.jlink.text||'unknown');
+    }
+    if(st.rtt){
+      setChip('rttStatusChip', st.rtt.level||'warn', st.rtt.text||'unknown');
+      startupReady.rtt=st.rtt.level==='ok';
+      setStartupStep('stepRtt', st.rtt.level||'warn', st.rtt.text||'unknown');
+    }
+    if(st.ports){
+      console.log('[PortStatus]', st.ports);
+      startupReady.ports=true;
+      setStartupStep('stepPorts','ok','done');
+    }
+    refreshStartupProgress();
+  }
+
+  window.updateStartupWs = function(on,text){
+    startupReady.ws=!!on;
+    setStartupStep('stepWs', on?'ok':'warn', text||'waiting');
+    refreshStartupProgress();
+  };
+
+  if(enterMonitorBtn){
+    enterMonitorBtn.onclick=closeStartupOverlay;
+  }
+
+  function toggleSidebar(force){
+    const pages=[...document.querySelectorAll('.page')];
+    const collapsed = force==null ? !pages.some(p=>p.classList.contains('sidebar-collapsed')) : !!force;
+    pages.forEach(p=>p.classList.toggle('sidebar-collapsed', collapsed));
+    try{localStorage.setItem('rttRuntimeSidebarCollapsed', collapsed?'1':'0');}catch(e){}
+    setTimeout(()=>{try{runtimeChart.resize();loadChart.resize();renderRuntimeChart(true);renderLoadChart(true);}catch(e){}},80);
+  }
+
+  window.toggleRuntimeSidebar = toggleSidebar;
+  document.querySelectorAll('.sidebar-toggle-floating').forEach(btn=>btn.onclick=()=>toggleSidebar(false));
+  const collapseSidebarBtn=document.getElementById('collapseSidebarBtn');
+  if(collapseSidebarBtn) collapseSidebarBtn.onclick=()=>toggleSidebar(true);
+
+  function openPanel(panel, open=true){
+    if(!panel)return;
+    panel.classList.toggle('open', open);
+  }
+
+  function toggleLogPanel(force){
+    const panel=document.getElementById('runtimeLogPanel');
+    if(!panel)return;
+    const open=force==null?!panel.classList.contains('open'):!!force;
+    openPanel(panel,open);
+  }
+
+  window.toggleRuntimeLogPanel=toggleLogPanel;
+  const openLogPanelBtn=document.getElementById('openLogPanelBtn');
+  const closeLogPanelBtn=document.getElementById('closeLogPanelBtn');
+  if(openLogPanelBtn) openLogPanelBtn.onclick=()=>toggleLogPanel(true);
+  if(closeLogPanelBtn) closeLogPanelBtn.onclick=()=>toggleLogPanel(false);
+
+  function makeFloatingPanelDraggable(panel){
+    if(!panel)return;
+    const handle=panel.querySelector('.floating-panel-head');
+    if(!handle)return;
+    handle.addEventListener('pointerdown',ev=>{
+      if(ev.target && ev.target.closest('button')) return;
+      ev.preventDefault();
+      const rect=panel.getBoundingClientRect();
+      const startX=ev.clientX,startY=ev.clientY;
+      const startLeft=rect.left,startTop=rect.top;
+      panel.style.right='auto';
+      panel.style.bottom='auto';
+      handle.setPointerCapture(ev.pointerId);
+      function move(e){
+        const nw=panel.offsetWidth, nh=panel.offsetHeight;
+        const left=clamp(startLeft+(e.clientX-startX),8,window.innerWidth-nw-8);
+        const top=clamp(startTop+(e.clientY-startY),72,window.innerHeight-nh-8);
+        panel.style.left=left+'px';
+        panel.style.top=top+'px';
+        try{
+          localStorage.setItem('rttRuntimeLogPanelLeft',String(Math.round(left)));
+          localStorage.setItem('rttRuntimeLogPanelTop',String(Math.round(top)));
+        }catch(err){}
+      }
+      function up(e){
+        handle.removeEventListener('pointermove',move);
+        handle.removeEventListener('pointerup',up);
+        try{handle.releasePointerCapture(e.pointerId);}catch(err){}
+      }
+      handle.addEventListener('pointermove',move);
+      handle.addEventListener('pointerup',up);
+    });
+    try{
+      const left=localStorage.getItem('rttRuntimeLogPanelLeft');
+      const top=localStorage.getItem('rttRuntimeLogPanelTop');
+      if(left&&top){panel.style.left=left+'px';panel.style.top=top+'px';panel.style.right='auto';panel.style.bottom='auto';}
+    }catch(e){}
+  }
+  makeFloatingPanelDraggable(document.getElementById('runtimeLogPanel'));
+
+  document.querySelectorAll('.desktop-v-splitter').forEach(split=>{
+    split.addEventListener('pointerdown', ev=>{
+      ev.preventDefault();
+      const startX=ev.clientX;
+      const startW=parseFloat(getComputedStyle(root).getPropertyValue('--leftW')) || 390;
+      split.setPointerCapture(ev.pointerId);
+      function move(e){
+        const nw=Math.max(280,Math.min(520,startW+(e.clientX-startX)));
+        root.style.setProperty('--leftW', nw+'px');
+        try{localStorage.setItem('rttRuntimeDesktopLeftW', String(Math.round(nw)));}catch(err){}
+        try{runtimeChart.resize();loadChart.resize();}catch(err){}
+      }
+      function up(e){
+        split.removeEventListener('pointermove',move);
+        split.removeEventListener('pointerup',up);
+        try{split.releasePointerCapture(e.pointerId);}catch(err){}
+      }
+      split.addEventListener('pointermove',move);
+      split.addEventListener('pointerup',up);
+    });
+    split.addEventListener('dblclick',()=>toggleSidebar());
+  });
+
+  function installHSplitter(mainEl, varName, minH, maxH){
+    if(!mainEl || mainEl.querySelector('.desktop-h-splitter')) return;
+    const firstCard=mainEl.querySelector('.chart-card,.load-chart-card');
+    if(!firstCard || !firstCard.nextElementSibling) return;
+    const sp=document.createElement('div');
+    sp.className='desktop-h-splitter';
+    sp.title='上下拖动调整曲线区域高度';
+    firstCard.insertAdjacentElement('afterend',sp);
+    sp.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();
+      const startY=ev.clientY;
+      const startH=firstCard.getBoundingClientRect().height;
+      sp.setPointerCapture(ev.pointerId);
+      function move(e){
+        const nh=Math.max(minH,Math.min(maxH,startH+(e.clientY-startY)));
+        root.style.setProperty(varName, nh+'px');
+        try{localStorage.setItem(varName==='--rtChartH'?'rttRuntimeDesktopRtChartH':'rttRuntimeDesktopLoadChartH', String(Math.round(nh)));}catch(err){}
+        try{runtimeChart.resize();loadChart.resize();renderRuntimeChart(true);renderLoadChart(true);}catch(err){}
+      }
+      function up(e){
+        sp.removeEventListener('pointermove',move);
+        sp.removeEventListener('pointerup',up);
+        try{sp.releasePointerCapture(e.pointerId);}catch(err){}
+      }
+      sp.addEventListener('pointermove',move);
+      sp.addEventListener('pointerup',up);
+    });
+  }
+  installHSplitter(document.querySelector('#runtimePage .main'),'--rtChartH',260,760);
+  installHSplitter(document.querySelector('#loadPage .main'),'--loadChartH',280,780);
+
+  function runMenuCommand(cmd){
+    switch(cmd){
+      case 'import-task-map': document.getElementById('importTaskMapBtn')?.click(); break;
+      case 'import-runnable-map': document.getElementById('importRunnableMapBtn')?.click(); break;
+      case 'capture-snapshot': document.getElementById('snapshotBtn')?.click(); break;
+      case 'export-report': document.getElementById('reportBtn')?.click(); break;
+      case 'clear-data': document.getElementById('clearBtn')?.click(); break;
+      case 'clear-memory': clearObjectNameMemory(); break;
+      case 'toggle-sidebar': toggleSidebar(); break;
+      case 'toggle-log-panel': toggleLogPanel(); break;
+      case 'reset-layout':
+        try{
+          localStorage.removeItem('rttRuntimeDesktopLeftW');
+          localStorage.removeItem('rttRuntimeDesktopRtChartH');
+          localStorage.removeItem('rttRuntimeDesktopLoadChartH');
+          localStorage.removeItem('rttRuntimeSidebarCollapsed');
+          localStorage.removeItem('rttRuntimeLogPanelLeft');
+          localStorage.removeItem('rttRuntimeLogPanelTop');
+        }catch(e){}
+        root.style.removeProperty('--leftW');root.style.removeProperty('--rtChartH');root.style.removeProperty('--loadChartH');
+        document.querySelectorAll('.page').forEach(p=>p.classList.remove('sidebar-collapsed'));
+        const logPanel=document.getElementById('runtimeLogPanel');
+        if(logPanel){logPanel.style.left='72px';logPanel.style.top='auto';logPanel.style.right='auto';logPanel.style.bottom='34px';}
+        setTimeout(()=>{try{runtimeChart.resize();loadChart.resize();renderRuntimeChart(true);renderLoadChart(true);}catch(e){}},80);
+        break;
+    }
+  }
+
+  if(window.electronAPI){
+    window.electronAPI.onMenuCommand(runMenuCommand);
+    window.electronAPI.onObjectMapFile(payload=>{
+      if(payload&&payload.kind&&typeof payload.text==='string'){
+        importObjectMap(payload.kind,payload.text,payload.fileName);
+      }
+    });
+    window.electronAPI.onBackendStatus(applyBackendStatus);
+    window.electronAPI.onBackendLog(appendStartupLog);
+    window.electronAPI.onBackendLogHistory(items=>{
+      if(Array.isArray(items)) items.forEach(appendStartupLog);
+    });
+    window.electronAPI.getSettings().then(s=>{
+      if(s && s.jlinkPath){ setChip('jlinkStatusChip','warn','path set'); }
+    }).catch(()=>{});
+  }
+})();
+
+document.getElementById('runtimeSearch').oninput=e=>{state.search=e.target.value;renderRuntimeTable()};document.getElementById('rtPauseBtn').onclick=()=>setRuntimePaused(!state.rtPaused);document.getElementById('rtMeasure').onchange=e=>setRuntimeMeasure(e.target.checked);document.getElementById('rtFollow').onchange=e=>state.rtFollow=e.target.checked;document.getElementById('loadFollow').onchange=e=>state.loadFollow=e.target.checked;document.getElementById('rtResetView').onclick=()=>{state.rtVisibleMs=10000;state.rtFollow=true;state.rtM1=null;state.rtM2=null;document.getElementById('rtFollow').checked=true;renderRuntimeChart(true)};document.getElementById('loadResetView').onclick=()=>{state.loadVisibleMs=20000;state.loadFollow=true;document.getElementById('loadFollow').checked=true;renderLoadChart(true)};document.getElementById('snapshotBtn').onclick=captureSnapshot;document.getElementById('reportBtn').onclick=exportTestReport;document.getElementById('exportSnap').onclick=exportCsv;document.getElementById('clearBtn').onclick=clearAll;document.getElementById('loadWindowMs').onchange=()=>{state.loadPeak=0;state.loadSeries=[];renderAll(true)};document.getElementById('cpuHz').onchange=()=>{try{localStorage.setItem('rttRuntimeCpuHzDefault', String(document.getElementById('cpuHz').value));}catch(e){} clearAll()};
+setupObjectMapImport();
+renderSnapshots();
+connectWs();
+</script>
+</body>
+</html>
+
