@@ -15,7 +15,15 @@ let lastBackendStatus = {
   ports: {}
 };
 
-function getResourcePath(...parts) {
+function getAppAssetPath(...parts) {
+  if (app.isPackaged) {
+    return path.join(app.getAppPath(), ...parts);
+  }
+
+  return path.join(__dirname, ...parts);
+}
+
+function getExternalResourcePath(...parts) {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, ...parts);
   }
@@ -219,8 +227,8 @@ function updateStatusFromBackendLine(line) {
 }
 
 function startBackend() {
-  const exePath = getResourcePath('tools', 'Websocket_Server.exe');
-  const pyPath = getResourcePath('backend', 'Websocket_Server.py');
+  const exePath = getExternalResourcePath('tools', 'Websocket_Server.exe');
+  const pyPath = getExternalResourcePath('backend', 'Websocket_Server.py');
   const backendEnv = getBackendEnv();
 
   lastBackendStatus.backend = {
@@ -593,7 +601,7 @@ function showAboutWindow() {
       </div>
     </div>
     <div class="grid">
-      <div class="k">版本</div><div class="v">V1.0</div>
+      <div class="k">版本</div><div class="v">V1.1</div>
       <div class="k">开发作者</div><div class="v">XPF</div>
       <div class="k">工具定位</div><div class="v">运行时间观察与 CPU 负载测量工具</div>
       <div class="k">主要功能</div><div class="v">RTT RuntimeOnce 实时采集、Task/Runnable 运行时间曲线、CPU 负载滑动窗口分析、快照与测试报告导出</div>
@@ -602,7 +610,7 @@ function showAboutWindow() {
       <div class="k">适用场景</div><div class="v">嵌入式任务、Runnable、调度周期和负载裕量观测</div>
     </div>
     <div class="footer">
-      <span>Runtime Observer · V1.0</span>
+      <span>Runtime Observer · V1.1</span>
       <button onclick="window.close()">确定</button>
     </div>
   </div>
@@ -619,7 +627,7 @@ function showAboutWindow() {
     parent: mainWindow,
     title: '关于 Runtime Observer',
     backgroundColor: '#eef3f5',
-    icon: getResourcePath('build', 'icon.ico'),
+    icon: getAppAssetPath('build', 'icon.ico'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
@@ -851,7 +859,7 @@ function createWindow() {
     minHeight: 820,
     backgroundColor: '#0c1224',
     title: 'Runtime Observer',
-    icon: getResourcePath('build', 'icon.ico'),
+    icon: getAppAssetPath('build', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -860,7 +868,7 @@ function createWindow() {
     }
   });
 
-  const htmlPath = getResourcePath(
+  const htmlPath = getAppAssetPath(
     'app',
     'CPU_Load_Monitor_Runtime_ElectronDesktop.html'
   );

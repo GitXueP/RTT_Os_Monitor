@@ -103,3 +103,30 @@ npm run dist
 
 - 工具依赖本机 SEGGER J-Link 环境。
 - 映射文件记忆、布局记忆等保存在本地桌面应用环境中。
+
+## 版本记录
+
+### V1.1
+
+发布时间：2026-07-06
+
+#### 打包运行修复
+
+- 修复 `npm run dist` 打包后 exe 启动时报“页面文件不存在”的问题。
+- 将前端页面、图标等应用内资源改为通过 `app.getAppPath()` 读取，兼容 `app.asar` 打包结构。
+- 将后端 Python 脚本与工具程序改为通过 `process.resourcesPath` 读取，确保外部进程可以在打包环境中正常访问。
+- 将 `backend/` 加入 `electron-builder.extraResources`，打包后会复制到 `resources/backend/`。
+
+#### 版本与发布信息
+
+- 应用版本号从 `1.0.0` 升级到 `1.1.0`。
+- 关于窗口版本显示更新为 `V1.1`。
+- 新增 V1.1 修改记录，并放置在 GitHub README 页面底部，便于后续继续追加版本历史。
+
+#### 验证记录
+
+- `main.js` 语法检查通过。
+- `preload.js` 语法检查通过。
+- 前端 HTML 内联脚本语法检查通过。
+- `npm run dist` 打包验证通过。
+- 打包后确认 `app.asar`、`resources/backend/Websocket_Server.py`、`resources/tools/Websocket_Server.exe` 均存在。

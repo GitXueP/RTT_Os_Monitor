@@ -103,3 +103,30 @@ npm run dist
 
 - The tool depends on a local SEGGER J-Link environment.
 - Mapping memory and layout memory are stored locally by the desktop app.
+
+## Changelog
+
+### V1.1
+
+Release date: 2026-07-06
+
+#### Packaging Runtime Fixes
+
+- Fixed the packaged exe startup error where the frontend HTML file could not be found after `npm run dist`.
+- Changed app-bundled assets, such as the frontend HTML and icon, to resolve through `app.getAppPath()` so they work with the `app.asar` package structure.
+- Changed backend scripts and executable tools to resolve through `process.resourcesPath`, ensuring external processes can access them in packaged builds.
+- Added `backend/` to `electron-builder.extraResources`, so it is copied to `resources/backend/` in packaged output.
+
+#### Version and Release Metadata
+
+- Upgraded the application version from `1.0.0` to `1.1.0`.
+- Updated the About dialog version display to `V1.1`.
+- Added the V1.1 changelog at the bottom of the GitHub README page, leaving a clear location for future release history.
+
+#### Verification
+
+- `main.js` syntax check passed.
+- `preload.js` syntax check passed.
+- Frontend HTML inline script syntax check passed.
+- `npm run dist` packaging verification passed.
+- Confirmed packaged output contains `app.asar`, `resources/backend/Websocket_Server.py`, and `resources/tools/Websocket_Server.exe`.

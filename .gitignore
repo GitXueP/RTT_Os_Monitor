@@ -13,6 +13,7 @@ release/
 # Python cache
 __pycache__/
 *.py[cod]
+*.spec
 
 # Logs and runtime files
 *.log

@@ -1,6 +1,6 @@
 {
   "name": "rtt-runtime-monitor",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Runtime Observer - J-Link RTT runtime and CPU load measurement tool",
   "main": "main.js",
   "author": "XPF",
@@ -27,6 +27,11 @@
       {
         "from": "tools",
         "to": "tools",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "backend",
+        "to": "backend",
         "filter": ["**/*"]
       }
     ],
