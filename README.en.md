@@ -121,7 +121,6 @@ Release date: 2026-07-06
 
 - Upgraded the application version from `1.0.0` to `1.1.0`.
 - Updated the About dialog version display to `V1.1`.
-- Added the V1.1 changelog at the bottom of the GitHub README page, leaving a clear location for future release history.
 
 #### Verification
 
